@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Andon System</string>
+
+    <!-- Strings related to login -->
+
+    <string name="err_msg_nointernet">Please check your internet connection</string>
+    <string name="enter_nt_userid">Enter NT-userId</string>
+    <string name="enter_employee_id">Enter employee id</string>
+    <string name="show_password">Show password</string>
+    <string name="login">Login</string>
+    <string name="edit_ip_address">Edit IP Address</string>
+    <string name="enter_password">Enter password</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="enter_ip_address">Enter IP address</string>
+    <string name="_2017_powered_by_v_v_technologies">©2017 powered by V V Technologies</string>
+</resources>
