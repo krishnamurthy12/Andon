@@ -1096,7 +1096,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         }
     };*/
 
-   /*This will clear the cache of our app*/
+   /*This will clear the cache of our app presented in current context*/
     public static void trimCache(Context context) {
         try {
             File dir = context.getCacheDir();
