@@ -32,37 +32,32 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
     private Context context;
     private List<NotificationList> mList;
-    public TextView mErrorId;
 
     private int lastPosition = -1;
 
-    AlertDialog.Builder builder;
-    AlertDialog alertDialog;
-    String ACTION_URL ="";
-    String CHECKLIST_URL="";
-    String MOE_URL="";
-    String MOE_URL1="";
+    NotificationInterface notificationInterface;
 
-    public NotificationAdapter(Context context, List<NotificationList> mList, TextView mErrorId) {
+    public NotificationAdapter(Context context, List<NotificationList> mList) {
         this.context = context;
         this.mList = mList;
-        this.mErrorId = mErrorId;
+        notificationInterface= (NotificationInterface) context;
 
     }
 
     @Override
     public MyHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.notification_single_row, parent, false);
+        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.new_notification_layout, parent, false);
         return new MyHolder(v);
     }
 
     @Override
     public void onBindViewHolder(MyHolder holder, int position) {
 
-        holder.mErrorID.setText(mList.get(position).getNotificationId() + "");
-        holder.mErrorMessage.setText("Error  : " + mList.get(position).getError());
-        holder.mPlaceOfErrorOccurrence.setText("LINE: " + mList.get(position).getLineCode() + "   &" + "  STATION: " + mList.get(position).getStation());
-        holder.mTeam.setText("Team  : " + mList.get(position).getTeam());
+        holder.mErrorID.setText(String.valueOf(mList.get(position).getNotificationId()));
+        holder.mErrorMessage.setText(mList.get(position).getError());
+        holder.mLine.setText( mList.get(position).getLineCode().toUpperCase());
+        holder.mStation.setText(mList.get(position).getStation());
+        holder.mTeam.setText(mList.get(position).getTeam());
 
         holder.mAcceptedby.setText(mList.get(position).getAcceptedBy());
         holder.mComplaintStatus.setText(mList.get(position).getNotificationStatus());
@@ -119,7 +114,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     public class MyHolder extends RecyclerView.ViewHolder {
 
         public ImageView mImage;
-        public TextView mErrorID, mErrorMessage, mPlaceOfErrorOccurrence, mTeam, mAcceptedby, mComplaintStatus, mDateTime;
+        public TextView mErrorID, mErrorMessage, mLine,mStation, mTeam, mAcceptedby, mComplaintStatus, mDateTime;
 
         public MyHolder(View itemView) {
             super(itemView);
@@ -128,7 +123,8 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
             mErrorID = itemView.findViewById(R.id.vT_error_id);
             mErrorMessage = itemView.findViewById(R.id.vT_error_message);
-            mPlaceOfErrorOccurrence = itemView.findViewById(R.id.vT_place_of_error_occurence);
+            mLine = itemView.findViewById(R.id.vT_line);
+            mStation=itemView.findViewById(R.id.vT_station);
             mTeam = itemView.findViewById(R.id.vT_team);
             mAcceptedby = itemView.findViewById(R.id.vT_accepted_by);
             mComplaintStatus = itemView.findViewById(R.id.vT_complaint_status);
@@ -141,45 +137,43 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
                     int position = getAdapterPosition();
                     String notificationID = mList.get(position).getNotificationId().toString();
                     String notificationStatus = mList.get(position).getNotificationStatus().trim().replaceAll("^\"|\"$", "");
-                    String accaptedBy=mList.get(position).getAcceptedBy();
-                    String currentEmployee=HomeActivity.employeeName;
-                    //String UserTeam=mList.get(position).getTeam();
+                    String team=mList.get(position).getTeam();
+
                     String department = HomeActivity.employeeDepartment;
-                    HomeActivity.employeeTeam = mList.get(position).getTeam();
-                    //HomeActivity.employeeTeam=mList.get(position).getTeam();
 
                     if (notificationStatus.equalsIgnoreCase("Open")) {
-                        mErrorId.setText(notificationID);
+
+                        //Interface method when Notification is in open state
+                        notificationInterface.acceptError(notificationID,team);
                     }
 
-                    //mErrorId.setText(mList.get(position).getNotificationId().toString());
-
                     if (notificationStatus.equalsIgnoreCase("CA Pending") && (department.contains("TEF"))) {
-                        showActionPopup(notificationID, HomeActivity.employeeID, HomeActivity.employeeTeam);
+
+                        //Interface method when TEF team completes work and try to give to CA
+                        notificationInterface.giveCA(notificationID,team);
 
                     }
 
                     if (notificationStatus.equalsIgnoreCase("CA Pending") && department.equals("LOM")) {
-                        showActionPopup(notificationID, HomeActivity.employeeID, HomeActivity.employeeTeam);
 
+                        //Interface method when LOM team completes work and try to give to CA
+                        notificationInterface.giveCA(notificationID,team);
                     }
 
                     if (notificationStatus.equalsIgnoreCase("CA Pending") && department.contains("FCM")) {
-                        showActionPopup(notificationID, HomeActivity.employeeID, HomeActivity.employeeTeam);
+
+                        //Interface method when FCM team completes work and try to give to CA
+                        notificationInterface.giveCA(notificationID,team);
 
                     } else if (notificationStatus.equalsIgnoreCase("CheckList Pending") && (department.contains("TEF"))) {
-                        showCheckListPopup(notificationID,HomeActivity.employeeID);
+
+                        //Interface method when repair time takes morethan 30 mins
+                        notificationInterface.checklist(notificationID);
 
                     } else if (notificationStatus.equalsIgnoreCase("MOE Comment Pending") && (department.contains("MOE"))) {
 
-
-                        //callMOEAPI
-
-                        MOE_URL1 ="http://"+HomeActivity.ipAddress+":8080/AndonWebservices/rest/action/"+notificationID;
-                        MOE_URL1 = MOE_URL1.replaceAll(" ", "%20");
-                        MOE_URL1 = MOE_URL1.replaceAll(" ", "%20");
-
-                        new MOEComment().execute();
+                        //Interface method when TEF team completes their work
+                        notificationInterface.giveMOEComment(notificationID,team);
 
                     }
 
@@ -188,405 +182,15 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             });
 
         }
-        class MOEComment extends AsyncTask<Void,Void,String>
-        {
-            ProgressDialog progressDialog;
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-                if(MOE_URL1 ==null)
-                {
-                    Toast.makeText(context, "Empty url", Toast.LENGTH_SHORT).show();
-                }
-                else {
-                    progressDialog=new ProgressDialog(context);
-                    progressDialog.setCancelable(false);
-                    progressDialog.setMessage("Updating...");
-                    progressDialog.show();
-                }
-            }
 
-            @Override
-            protected String doInBackground(Void... voids) {
-
-                APIServiceHandler sh = new APIServiceHandler();
-
-                // Making a request to url and getting response
-                String jsonStr = sh.makeServiceCall(MOE_URL1, APIServiceHandler.GET);
-                return jsonStr;
-            }
-
-            @Override
-            protected void onPostExecute(String s) {
-                super.onPostExecute(s);
-                if(progressDialog.isShowing())
-                {
-                    progressDialog.dismiss();
-                }
-                if(s!=null)
-                {
-                    //Used to replace double quotes with white space character
-                    String acpt=s.replaceAll("^\"|\"$", "");
-
-
-                    if (acpt.equals("Server TimeOut")) {
-                        Toast.makeText(context, acpt, Toast.LENGTH_LONG).show();
-                    }
-                    if (!acpt.equals("")) {
-                        Toast.makeText(context, acpt, Toast.LENGTH_LONG).show();
-                        String[] msg = acpt.split("/");
-                        String resolvedMessage = "Resolver Error" + ": " + msg[2];
-                        String msgID = msg[1];
-                        String team = msg[3];
-                        System.out.println("sdsd:" + team);
-                        String tmm = team.replace("\"", "");
-                        showMOEpoPup(resolvedMessage, msgID, tmm);
-                        // recreate();
-
-                    } else if (acpt.contains("false")) {
-                        Toast.makeText(context, "server busy wait for a while", Toast.LENGTH_LONG).show();
-                    } else {
-                        Toast.makeText(context, acpt, Toast.LENGTH_LONG).show();
-                    }
-
-                }
-
-            }
-        }
-
-        private void showMOEpoPup(String resolvedMessage, final String notificationID,final String employeeTeam) {
-            LayoutInflater inflater = (LayoutInflater) context.getSystemService(LAYOUT_INFLATER_SERVICE);
-            View dialogView = inflater.inflate(R.layout.moe_popup_layout, null);
-
-            final EditText mComment = dialogView.findViewById(R.id.vE_mpl_entered_text);
-            TextView mYes = dialogView.findViewById(R.id.vT_mpl_ok);
-            TextView mNo = dialogView.findViewById(R.id.vT_mpl_cancel);
-            TextView mMessage=dialogView.findViewById(R.id.vT_mpl_messagebody);
-
-            mMessage.setText(resolvedMessage);
-
-            builder = new AlertDialog.Builder(context);
-            builder.setView(dialogView);
-            builder.setCancelable(false);
-
-            alertDialog = builder.create();
-            alertDialog.show();
-            mYes.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-
-                    //replaceAll(System.getProperty("line.separator"), "") is used to remove new line characters from entered text
-                    String enteredText = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
-
-                    if(TextUtils.isEmpty(enteredText) || enteredText.length()<2)
-                    {
-                        Toast.makeText(context, "Enter Some closing comment", Toast.LENGTH_SHORT).show();
-                    }
-                    else {
-                        alertDialog.dismiss();
-                        callMOEClosingAPI(notificationID,enteredText,HomeActivity.employeeID,employeeTeam);
-                    }
-
-
-                }
-            });
-
-            mNo.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    alertDialog.dismiss();
-                }
-            });
-
-        }
-
-        private void callMOEClosingAPI(String notificationID, String enteredMessage, String employeeID, String employeeTeam) {
-
-            MOE_URL ="http://"+HomeActivity.ipAddress+":8080/AndonWebservices/rest/action/closeIssue/"+notificationID+"/"+enteredMessage+"/"+employeeID+"/"+employeeTeam;
-            MOE_URL = MOE_URL.replaceAll(" ", "%20");
-            MOE_URL = MOE_URL.replaceAll(" ", "%20");
-
-            new MOECloseComment().execute();
-
-            //Toast.makeText(context, notificationID+" "+enteredMessage, Toast.LENGTH_SHORT).show();
-        }
-
-        class MOECloseComment extends AsyncTask<Void,Void,String>
-        {
-            ProgressDialog progressDialog;
-
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-                if(MOE_URL ==null)
-                {
-                    Toast.makeText(context, "Empty url", Toast.LENGTH_SHORT).show();
-                }
-                else {
-                    progressDialog=new ProgressDialog(context);
-                    progressDialog.setCancelable(false);
-                    progressDialog.setMessage("Updating...");
-                    progressDialog.show();
-                }
-            }
-
-            @Override
-            protected String doInBackground(Void... voids) {
-
-                APIServiceHandler sh = new APIServiceHandler();
-
-                // Making a request to url and getting response
-                String jsonStr = sh.makeServiceCall(MOE_URL, APIServiceHandler.GET);
-                return jsonStr;
-            }
-
-            @Override
-            protected void onPostExecute(String s) {
-                super.onPostExecute(s);
-                if(progressDialog.isShowing())
-                {
-                    progressDialog.dismiss();
-                }
-                if(s!=null)
-                {
-                    String jsonStr=s.replaceAll("^\"|\"$", "");
-
-                    if (jsonStr.equals("Server TimeOut")) {
-                        Toast.makeText(context, jsonStr, Toast.LENGTH_LONG).show();
-                    }
-                    else if(jsonStr.contains("true"))
-                    {
-                        Toast.makeText(context, "Message saved", Toast.LENGTH_LONG).show();
-                        //new HomeActivity().refreshPage();
-
-                        context.startActivity(new Intent(context,HomeActivity.class));
-                    }
-                    else {
-                        Toast.makeText(context, jsonStr.toString(), Toast.LENGTH_LONG).show();
-                        //new HomeActivity().refreshPage();
-                        context.startActivity(new Intent(context,HomeActivity.class));
-                    }
-
-                }
-            }
-        }
-
-        private void showActionPopup(final String notificationID, final String employeeID, final String employeeTeam) {
-
-            LayoutInflater inflater = (LayoutInflater) context.getSystemService(LAYOUT_INFLATER_SERVICE);
-            View dialogView = inflater.inflate(R.layout.containment_action_layout, null);
-
-            final EditText mComment = dialogView.findViewById(R.id.vMLT_entered_text);
-            TextView mYes = dialogView.findViewById(R.id.vT_cal_ok);
-            TextView mNo = dialogView.findViewById(R.id.vT_cal_cancel);
-
-            builder = new AlertDialog.Builder(context);
-            builder.setView(dialogView);
-            builder.setCancelable(false);
-
-            alertDialog = builder.create();
-            alertDialog.show();
-
-            mYes.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    //replaceAll(System.getProperty("line.separator"), "") is used to remove new line characters from entered text
-                    String enteredMessage = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
-                    if (TextUtils.isEmpty(enteredMessage) || enteredMessage.length() < 6) {
-                        Toast.makeText(context, "What action have you taken to solve the issue ?", Toast.LENGTH_SHORT).show();
-                    } else {
-                        alertDialog.dismiss();
-                        callContainmentActionAPI(notificationID,enteredMessage,employeeID,employeeTeam);
-
-                    }
-
-                }
-            });
-
-            mNo.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-
-                    alertDialog.dismiss();
-
-                }
-            });
-
-
-        }
-
-
-        private void callContainmentActionAPI(String notificationID, String enteredMessage, String employeeID, String employeeTeam) {
-
-            ACTION_URL ="http://"+HomeActivity.ipAddress+":8080/AndonWebservices/rest/action/"+notificationID+"/"+enteredMessage+"/"+employeeID+"/"+employeeTeam;
-            ACTION_URL = ACTION_URL.replaceAll(" ", "%20");
-            ACTION_URL = ACTION_URL.replaceAll(" ", "%20");
-
-            new SubmitContainmentAction().execute();
-
-            //Toast.makeText(context, notificationID+" "+enteredMessage, Toast.LENGTH_SHORT).show();
-        }
-
-        class SubmitContainmentAction extends AsyncTask<Void,Void,String>
-        {
-            ProgressDialog progressDialog;
-
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-                if(ACTION_URL ==null)
-                {
-                    Toast.makeText(context, "Empty url", Toast.LENGTH_SHORT).show();
-                }
-                else {
-                     progressDialog=new ProgressDialog(context);
-                     progressDialog.setCancelable(false);
-                     progressDialog.setMessage("Updating...");
-                     progressDialog.show();
-                }
-            }
-
-            @Override
-            protected String doInBackground(Void... voids) {
-
-                APIServiceHandler sh = new APIServiceHandler();
-
-                // Making a request to url and getting response
-                String jsonStr = sh.makeServiceCall(ACTION_URL, APIServiceHandler.GET);
-                return jsonStr;
-            }
-
-            @Override
-            protected void onPostExecute(String s) {
-                super.onPostExecute(s);
-                if(progressDialog.isShowing())
-                {
-                    progressDialog.dismiss();
-                }
-                if(s!=null)
-                {
-                    String jsonStr=s.replaceAll("^\"|\"$", "");
-
-                    if (jsonStr.equals("Server TimeOut")) {
-                        Toast.makeText(context, jsonStr, Toast.LENGTH_LONG).show();
-                    }
-                    else if(jsonStr.contains("true"))
-                    {
-                        Toast.makeText(context, "Message saved", Toast.LENGTH_LONG).show();
-                        //new HomeActivity().refreshPage();
-                        context.startActivity(new Intent(context,HomeActivity.class));
-                        notifyDataSetChanged();
-                    }
-                    else {
-                        Toast.makeText(context, jsonStr.toString(), Toast.LENGTH_LONG).show();
-                    }
-
-                }
-            }
-        }
-
-        private void showCheckListPopup(final String notificationID, final String employeeID)
-        {
-            LayoutInflater inflater = (LayoutInflater) context.getSystemService(LAYOUT_INFLATER_SERVICE);
-            View dialogView = inflater.inflate(R.layout.check_list_layout, null);
-
-            TextView mYes = dialogView.findViewById(R.id.vT_cll_yes);
-            TextView mNo = dialogView.findViewById(R.id.vT_cll_no);
-
-            builder = new AlertDialog.Builder(context);
-            builder.setView(dialogView);
-            builder.setCancelable(false);
-
-            alertDialog = builder.create();
-            alertDialog.show();
-
-            mYes.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    alertDialog.dismiss();
-                    callCheckListAPI(notificationID,"1",employeeID);
-
-                }
-            });
-
-            mNo.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    alertDialog.dismiss();
-                    callCheckListAPI(notificationID,"0",employeeID);
-
-                }
-            });
-
-        }
-        private void callCheckListAPI(String notificationID, String response, String employeeID) {
-
-            CHECKLIST_URL ="http://"+HomeActivity.ipAddress+":8080/AndonWebservices/rest/action/checklist/"+notificationID+"/"+response+"/"+employeeID;
-            CHECKLIST_URL = CHECKLIST_URL.replaceAll(" ", "%20");
-            CHECKLIST_URL = CHECKLIST_URL.replaceAll(" ", "%20");
-
-            new CheckListAPI().execute();
-
-            //Toast.makeText(context, notificationID+" "+enteredMessage, Toast.LENGTH_SHORT).show();
-        }
-
-        class CheckListAPI extends AsyncTask<Void,Void,String>
-        {
-            ProgressDialog progressDialog;
-
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-                if(CHECKLIST_URL ==null)
-                {
-                    Toast.makeText(context, "Empty url", Toast.LENGTH_SHORT).show();
-                }
-                else {
-                    progressDialog=new ProgressDialog(context);
-                    progressDialog.setCancelable(false);
-                    progressDialog.setMessage("Updating...");
-                    progressDialog.show();
-                }
-            }
-
-            @Override
-            protected String doInBackground(Void... voids) {
-
-                APIServiceHandler sh = new APIServiceHandler();
-
-                // Making a request to url and getting response
-                String jsonStr = sh.makeServiceCall(CHECKLIST_URL, APIServiceHandler.GET);
-                return jsonStr;
-            }
-
-            @Override
-            protected void onPostExecute(String s) {
-                super.onPostExecute(s);
-                if(progressDialog.isShowing())
-                {
-                    progressDialog.dismiss();
-                }
-                if(s!=null)
-                {
-                    String jsonStr=s.replaceAll("^\"|\"$", "");
-
-                    if (jsonStr.equals("Server TimeOut")) {
-                        Toast.makeText(context, jsonStr, Toast.LENGTH_LONG).show();
-                    }
-                    else if(jsonStr.contains("true"))
-                    {
-                        context.startActivity(new Intent(context,HomeActivity.class));
-                        Toast.makeText(context, "Need to Fill the checklist in Line", Toast.LENGTH_LONG).show();
-                    }
-                    else {
-                        context.startActivity(new Intent(context,HomeActivity.class));
-                        //Toast.makeText(context, "Need to Fill the checklist in Line", Toast.LENGTH_LONG).show();
-                        //Toast.makeText(context, jsonStr.toString(), Toast.LENGTH_LONG).show();
-                    }
-
-                }
-            }
-        }
+    }
+
+    public interface NotificationInterface
+    {
+        public void acceptError(String errorId,String team);
+        public void giveCA(String errorId,String team);
+        public void giveMOEComment(String errorId,String team);
+        public void checklist(String errorId);
 
     }
 }

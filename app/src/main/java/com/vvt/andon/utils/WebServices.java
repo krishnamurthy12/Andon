@@ -42,7 +42,8 @@ public class WebServices<T> {
     private static OkHttpClient.Builder builder;
 
     public enum ApiType {
-       userlogin,allNotifications,allAvailableUsers,acceptError
+
+       userlogin,allNotifications,allAvailableUsers,acceptError,giveCA,getCAGiven,giveMOEComment,checklistConfirm,logOut
 
     }
 
@@ -135,6 +136,32 @@ public class WebServices<T> {
         });
     }
 
+    public void logOut(String api,ApiType apiTypes,String employeeId)
+    {
+        apiTypeVariable = apiTypes;
+        Retrofit retrofit=getRetrofitClient(api);
+
+        AndonAPI andonAPI=retrofit.create(AndonAPI.class);
+        call=(Call<T>)andonAPI.logOut(employeeId);
+        call.enqueue(new Callback<T>() {
+            @Override
+            public void onResponse(Call<T> call, Response<T> response) {
+                t=(T)response.body();
+                onResponseListner.onResponse(t, apiTypeVariable, true,response.code());
+                //Toast.makeText(context, "Success"+response.code(), Toast.LENGTH_SHORT).show();
+
+            }
+
+            @Override
+            public void onFailure(Call<T> call, Throwable t) {
+                //Toast.makeText(context, "Failure", Toast.LENGTH_SHORT).show();
+                onResponseListner.onResponse(null, apiTypeVariable, false,0);
+
+            }
+        });
+    }
+
+
     public void getAllNotifications(String api,ApiType apiTypes,String dept,String valueStream)
     {
         apiTypeVariable = apiTypes;
@@ -210,13 +237,14 @@ public class WebServices<T> {
         });
     }
 
-    /*public void logOut(String api,ApiType apiTypes,String employeeId)
+
+    public void giveCA(String api,ApiType apiTypes,String notificationId,String enteredMessage,String employeeId,String team)
     {
         apiTypeVariable = apiTypes;
         Retrofit retrofit=getRetrofitClient(api);
 
         AndonAPI andonAPI=retrofit.create(AndonAPI.class);
-        call=(Call<T>)andonAPI.logOut(employeeId);
+        call=(Call<T>)andonAPI.giveCA(notificationId,enteredMessage,employeeId,team);
         call.enqueue(new Callback<T>() {
             @Override
             public void onResponse(Call<T> call, Response<T> response) {
@@ -233,7 +261,82 @@ public class WebServices<T> {
 
             }
         });
-    }*/
+    }
+
+    public void getCAGiven(String api,ApiType apiTypes,String notificationId,String team)
+    {
+        apiTypeVariable = apiTypes;
+        Retrofit retrofit=getRetrofitClient(api);
+
+        AndonAPI andonAPI=retrofit.create(AndonAPI.class);
+        call=(Call<T>)andonAPI.getCAGiven(notificationId,team);
+        call.enqueue(new Callback<T>() {
+            @Override
+            public void onResponse(Call<T> call, Response<T> response) {
+                t=(T)response.body();
+                onResponseListner.onResponse(t, apiTypeVariable, true,response.code());
+                //Toast.makeText(context, "Success"+response.code(), Toast.LENGTH_SHORT).show();
+
+            }
+
+            @Override
+            public void onFailure(Call<T> call, Throwable t) {
+                //Toast.makeText(context, "Failure", Toast.LENGTH_SHORT).show();
+                onResponseListner.onResponse(null, apiTypeVariable, false, 0);
+
+            }
+        });
+    }
+
+    public void giveMOEComment(String api,ApiType apiTypes,String notificationId,String action,String employeeId,String team)
+    {
+        apiTypeVariable = apiTypes;
+        Retrofit retrofit=getRetrofitClient(api);
+
+        AndonAPI andonAPI=retrofit.create(AndonAPI.class);
+        call=(Call<T>)andonAPI.giveMOEComment(notificationId,action,employeeId,team);
+        call.enqueue(new Callback<T>() {
+            @Override
+            public void onResponse(Call<T> call, Response<T> response) {
+                t=(T)response.body();
+                onResponseListner.onResponse(t, apiTypeVariable, true,response.code());
+                //Toast.makeText(context, "Success"+response.code(), Toast.LENGTH_SHORT).show();
+
+            }
+
+            @Override
+            public void onFailure(Call<T> call, Throwable t) {
+                //Toast.makeText(context, "Failure", Toast.LENGTH_SHORT).show();
+                onResponseListner.onResponse(null, apiTypeVariable, false, 0);
+
+            }
+        });
+    }
+
+    public void checkList(String api,ApiType apiTypes,String notificationId,String response,String employeeId)
+    {
+        apiTypeVariable = apiTypes;
+        Retrofit retrofit=getRetrofitClient(api);
+
+        AndonAPI andonAPI=retrofit.create(AndonAPI.class);
+        call=(Call<T>)andonAPI.confirmCheckList(notificationId,response,employeeId);
+        call.enqueue(new Callback<T>() {
+            @Override
+            public void onResponse(Call<T> call, Response<T> response) {
+                t=(T)response.body();
+                onResponseListner.onResponse(t, apiTypeVariable, true,response.code());
+                //Toast.makeText(context, "Success"+response.code(), Toast.LENGTH_SHORT).show();
+
+            }
+
+            @Override
+            public void onFailure(Call<T> call, Throwable t) {
+                //Toast.makeText(context, "Failure", Toast.LENGTH_SHORT).show();
+                onResponseListner.onResponse(null, apiTypeVariable, false, 0);
+
+            }
+        });
+    }
 
 
 }

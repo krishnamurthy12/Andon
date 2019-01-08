@@ -2,10 +2,15 @@ package com.vvt.andon.activities;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.ProgressDialog;
 import android.app.Service;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -13,26 +18,23 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
-import android.media.RingtoneManager;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
-import android.os.Environment;
 import android.os.Handler;
-import android.os.IBinder;
-import android.os.Message;
-import android.os.Messenger;
-import android.os.PowerManager;
-import android.os.RemoteException;
+import android.os.Looper;
 import android.os.StrictMode;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -46,7 +48,9 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -58,22 +62,34 @@ import com.vvt.andon.api_responses.allnotifications.AllNotificationsResponse;
 import com.vvt.andon.api_responses.allnotifications.NotificationList;
 import com.vvt.andon.api_responses.allusers.AllAvailableUsersResponse;
 import com.vvt.andon.api_responses.allusers.EmployeeStatusList;
+import com.vvt.andon.api_responses.general.InteractionResponse;
+import com.vvt.andon.api_responses.logout.LogOutResponse;
 import com.vvt.andon.customs.customViewGroup;
-import com.vvt.andon.mqtt.MQTTservice;
+import com.vvt.andon.events.NotificationEvent;
+import com.vvt.andon.mqtt.MQTTService1;
+import com.vvt.andon.service.MyJobService;
 import com.vvt.andon.utils.APIServiceHandler;
 import com.vvt.andon.utils.AndonUtils;
+import com.vvt.andon.utils.NotificationClass;
 import com.vvt.andon.utils.OnResponseListener;
 import com.vvt.andon.utils.WebServices;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
-import android.support.v4.app.NotificationCompat;
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 public class HomeActivity extends AppCompatActivity implements View.OnClickListener,
-        OnResponseListener,SwipeRefreshLayout.OnRefreshListener
+        OnResponseListener,SwipeRefreshLayout.OnRefreshListener,NotificationAdapter.NotificationInterface
 {
+
+    String TAG="HomeActivity";
 
     RecyclerView mNotificationsRecyclerView,mUsersRecyclerView;
     SwipeRefreshLayout mSwipeRefreshLayout;
@@ -84,84 +100,98 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     NotificationAdapter notificationAdapter;
     EmployeesAdapter employeesAdapter;
 
-    //ProgressBar mProgressBar;
+    Handler refreshHandler;
+
+    private Timer mTimer1;
+    private Handler mTimerHandler = new Handler();
 
     List<NotificationList> notificationList;
     List<EmployeeStatusList> employeeStatusList;
 
     TextView mEmployeeName,mErrorId,mCancel;
-    public static String employeeTeam="";
-    //GridView mGridView;
 
     public static Vibrator vibrator;
 
     AlertDialog.Builder builder;
     AlertDialog alertDialog;
 
+    ProgressDialog progressDialog;
+
     //public  static String department="";
-    String team,notificationID;
-    public static String employeeName,employeeID,employeeDepartment,employeValueStream,employeeLineID,employeeDesignamtion;
+    String notificationID;
+    public static String employeeName,employeeID,employeeDepartment,employeValueStream,employeeLineID,employeeDesignamtion,notificationTeam;
     public static String ipAddress;
     boolean isLoggedIn=false;
-    String TAG="HomeActivity";
-    int count = 0;
 
     Snackbar snackbar;
     Toast mToast;
 
-    private Messenger service = null;
-    private final Messenger serviceHandler = new Messenger(new ServiceHandler());
     private IntentFilter intentFilter = null;
-    private PushReceiver pushReceiver;
-
+   // private PushReceiver pushReceiver;
 
     public String BASE_URL="";
 
-    PowerManager pm;
-    PowerManager.WakeLock wl;
+   public boolean IS_USER_INTERACTING=false;
 
-    Handler cacheHandler=new Handler();
+   JobScheduler jobScheduler;
+   JobInfo jobInfo;
+    private static final int JOB_ID = 101;
 
-    PackageInfo pinfo = null;
-    String versionName;
+    /*//Broadcast receiver to identify Screen OFF and Screen ON events
+    BroadcastReceiver mybroadcast = new BroadcastReceiver() {
 
+        //When Event is published, onReceive method is called
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // TODO Auto-generated method stub
+           // Log.i("[BroadcastReceiver]", "MyReceiver");
+
+            if(intent.getAction().equals(Intent.ACTION_SCREEN_ON)){
+                //refreshList();
+                Log.i("[BroadcastReceiver]", "Screen ON");
+            }
+            else if(intent.getAction().equals(Intent.ACTION_SCREEN_OFF)){
+                Log.i("[BroadcastReceiver]", "Screen OFF");
+            }
+
+        }
+    };*/
 
     @Override
     protected void onStart() {
         super.onStart();
+        Log.d("flowcheck","inside onStart()");
 
-        NotificationManager notif = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        EventBus.getDefault().register(this);
+
+       /* NotificationManager notif = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (notif != null) {
             notif.cancelAll();
-        }
+        }*/
 
         callAllNotificationsAPI();
-        callAllAvailableUsers();
+        callAllAvailableUsersAPI();
+        startTimer();
 
-        //clearCacheRunnable.run();
-
-        bindService(new Intent(this, MQTTservice.class), serviceConnection, 0);
-
-        //subscribeToMQTT();
-
-        if (android.os.Build.VERSION.SDK_INT > 9) {
+       /* if (android.os.Build.VERSION.SDK_INT > 9) {
 
             StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
             StrictMode.setThreadPolicy(policy);
+        }*/
 
-        }
-        if (Build.VERSION.SDK_INT >= 23) {
+       /* if (Build.VERSION.SDK_INT >= 23) {
             if (!Settings.canDrawOverlays(HomeActivity.this)) {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         Uri.parse("package:" + getPackageName()));
                 startActivityForResult(intent, 1234);
             }
-        } else {
+        } *//*else {
             Intent intent = new Intent(HomeActivity.this, Service.class);
             startService(intent);
-        }
+        }*//*
 
-        // implement setOnDrawerOpenListener event
+
+        *//*To lock the notification bar from dragging*//*
         WindowManager manager = ((WindowManager) getApplicationContext().getSystemService(Context.WINDOW_SERVICE));
         WindowManager.LayoutParams localLayoutParams = new WindowManager.LayoutParams();
         localLayoutParams.type = WindowManager.LayoutParams.TYPE_SYSTEM_ERROR;
@@ -175,42 +205,160 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         localLayoutParams.height = (int) (50 * getResources().getDisplayMetrics().scaledDensity);
         localLayoutParams.format = PixelFormat.TRANSPARENT;
         customViewGroup view = new customViewGroup(this);
-        manager.addView(view, localLayoutParams);
+        manager.addView(view, localLayoutParams);*/
+
+    }
 
 
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d("flowcheck","inside onResume()");
+
+        MQTTService1 mqttService1=new MQTTService1();
+
+        if (!isMyServiceRunning(mqttService1.getClass())) {
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Log.d("versionchecck","Build.VERSION_CODES>=M");
+                Intent serviceIntent = new Intent(this, MQTTService1.class);
+                ContextCompat.startForegroundService(this, serviceIntent );
+            }
+            else {
+                Log.d("versionchecck","Build.VERSION_CODES<M");
+                startService(new Intent(this,MQTTService1.class));
+
+            }
+            // startService(new Intent(this,MQTTService1.class));
+        }
+    }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        Log.d("flowcheck","inside onPostResume()");
     }
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d("flowcheck","inside onCreate()");
+
+        /*to preventing from taking screen shots*/
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE);
+
         setContentView(R.layout.activity_home);
         getLogInSharedPreferenceData();
+
+       // jobScheduler= (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        constructJob();
         initializeViews();
 
+        this.refreshHandler = new Handler(Looper.getMainLooper());
 
-        try {
-            pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-            // int versionNumber = pinfo.versionCode;
-             versionName = pinfo.versionName;
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
+       /* registerReceiver(mybroadcast, new IntentFilter(Intent.ACTION_SCREEN_ON));
+        registerReceiver(mybroadcast, new IntentFilter(Intent.ACTION_SCREEN_OFF));*/
+
+    }
+
+
+    private void constructJob()
+    {
+        JobInfo.Builder builder=new JobInfo.Builder(JOB_ID,new ComponentName(this, MyJobService.class));
+      /*  //if we want to send data through bundle
+       PersistableBundle persistableBundle=new PersistableBundle();
+       persistableBundle.putString("KEY","value");*/
+
+       // builder.setPeriodic(15*60 * 1000); /* Repeat job for every 15 minutes*/
+        builder.setPeriodic(60 * 1000); /* Repeat job for every 1 minutes*/
+
+        builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED); // WIFI or ethernet network
+        builder.setPersisted(true);
+
+        jobInfo=builder.build();
+        jobScheduler= (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
+        if (jobScheduler != null) {
+            jobScheduler.schedule(jobInfo);
         }
 
-        intentFilter = new IntentFilter();
-        intentFilter.addAction("com.example.MQTT.PushReceived");
+    }
 
-        pushReceiver = new PushReceiver();
-        registerReceiver(pushReceiver, intentFilter, null, null);
 
-        pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        if (pm != null) {
-            wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakelock");
-           /* wl.acquire(45*60*1000L *//*45 minutes*//*);*/
+    /*is to identify specified service is running or not*/
+    private boolean isMyServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        if (manager != null) {
+            for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+                if (serviceClass.getName().equals(service.service.getClassName())) {
+                    Log.i ("isMyServiceRunning?", true+"");
+                    return true;
+                }
+            }
         }
+        Log.i ("isMyServiceRunning?", false+"");
+        return false;
+    }
 
+    private void startTimer(){
+        if(mTimer1!=null)
+        {
+            stopTimer();
+        }
+        mTimer1 = new Timer();
+        TimerTask mTt1 = new TimerTask() {
+            public void run() {
+                mTimerHandler.post(new Runnable() {
+                    public void run() {
+                        //TODO
+                        Log.d(TAG, "inside startTimer run method");
+                        MQTTService1 mqttService1 = new MQTTService1();
+                        if(!isAppIsInBackground(HomeActivity.this))
+                        {
+                            if(!IS_USER_INTERACTING)
+                            {
+                                Log.d(TAG, "inside inner if block");
+                                if (!isMyServiceRunning(mqttService1.getClass())) {
+                                    Log.d(TAG,"MyService not Running");
 
-        startService(new Intent(this, MQTTservice.class));
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                        Intent serviceIntent = new Intent(HomeActivity.this, MQTTService1.class);
+                                        ContextCompat.startForegroundService(HomeActivity.this, serviceIntent );
+                                    }
+                                    else {
+                                        startService(new Intent(HomeActivity.this,MQTTService1.class));
+
+                                    }
+                                    // startService(new Intent(this,MQTTService1.class));
+                                }
+                                else {
+                                    Log.d(TAG,"MyService Running");
+                                }
+                                /*if (!isMyServiceRunning(mqttService1.getClass())) {
+
+                                    //startService(new Intent(MQTTService1.this, MQTTService1.class));
+                                }
+*/
+                            }
+
+                        }
+
+                        //doConnect();
+                    }
+                });
+            }
+        };
+
+        mTimer1.schedule(mTt1, 1, 60*1000); //1 minutes
+    }
+
+    private void stopTimer(){
+        if(mTimer1 != null){
+            mTimer1.cancel();
+            mTimer1.purge();
+        }
     }
 
 
@@ -238,24 +386,18 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         notificationList=new ArrayList<>();
         employeeStatusList=new ArrayList<>();
 
-        //mProgressBar=findViewById(R.id.vP_ah_progressbar);
-        //mProgressBar.setVisibility(View.GONE);
-
         mEmployeeName=findViewById(R.id.vT_ah_employee_name);
         mEmployeeName.setText(employeeName);
 
         mAcceptErrorLayout=findViewById(R.id.vL_ah_accept_layout);
         mErrorId=findViewById(R.id.vT_ah_error_id);
 
-        //mGridView=findViewById(R.id.vG_employee_list);
-
-
         mNotificationsRecyclerView =findViewById(R.id.vR_recycler_view);
         mNotificationsRecyclerView.setHasFixedSize(true);
         layoutManager=new LinearLayoutManager(this);
         mNotificationsRecyclerView.setLayoutManager(layoutManager);
 
-        notificationAdapter=new NotificationAdapter(this,notificationList,mErrorId);
+        notificationAdapter=new NotificationAdapter(this,notificationList);
         mNotificationsRecyclerView.setAdapter(notificationAdapter);
 
         mUsersRecyclerView=findViewById(R.id.vR_employee_list);
@@ -265,10 +407,6 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
 
         employeesAdapter=new EmployeesAdapter(this,employeeStatusList);
         mUsersRecyclerView.setAdapter(employeesAdapter);
-
-
-       /* notificationAdapter=new NotificationAdapter(this,notificationList);
-        employeesAdapter=new EmployeesAdapter(this,employeeStatusList);*/
 
        mCancel=findViewById(R.id.vT_ah_cancel);
        mAccept=findViewById(R.id.vB_ah_accept);
@@ -281,23 +419,27 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         mSwipeRefreshLayout=findViewById(R.id.vS_swipe_refresh_layout);
         mSwipeRefreshLayout.setOnRefreshListener(this);
 
+
+        /*
+         *  If the Employee belongs to TEF or LOM or FCM then they are eligible to accept the error and work on it
+         *  If the department is MOE they can only monitor the work progress and finally after issue fixing they are responsible
+         *  to verify the fix and close the issue by  giving some closing comment
+        */
         if (employeeDepartment.contains("MOE")) {
-            mAcceptErrorLayout.setVisibility(View.INVISIBLE);
-            //department = "MOE31";
+            mAcceptErrorLayout.setVisibility(View.GONE);
+
         }  else if (employeeDepartment.contains("TEF")) {
             mAcceptErrorLayout.setVisibility(View.VISIBLE);
-            //department = "TEF11";
+
         } else if (employeeDepartment.contains("LOM")) {
             mAcceptErrorLayout.setVisibility(View.VISIBLE);
-            //department = "LOM";
+
         } else if (employeeDepartment.contains("FCM")) {
             mAcceptErrorLayout.setVisibility(View.VISIBLE);
-            //department = "FCM";
         }
 
-        /*callAllNotificationsAPI();
-        callAllAvailableUsers();*/
     }
+
 
     @Override
     public void onClick(View v) {
@@ -305,30 +447,80 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         switch (v.getId())
         {
             case R.id.vB_ah_accept:
-                vibrator.vibrate(200);
-                notificationID =mErrorId.getText().toString();
-                if(TextUtils.isEmpty(notificationID))
-                {
-                    showSnackBar(this,"Please select one issue from the above list");
-                }
-                else {
-                    callAcceptMessageAPI(notificationID);
+                hideKeyBoard();
+                //vibrator.vibrate(100);
+                notificationID = mErrorId.getText().toString();
+                if (TextUtils.isEmpty(notificationID)) {
+                    showSnackBar(this, "Please select one issue from the above list");
+                } else {
+
+                    if (notificationTeam != null) {
+
+                        callAcceptMeaasgeAPI(notificationID, employeeID, notificationTeam);
+                        mErrorId.setText("");
+
+                    } else {
+                        showSnackBar(this, "Please select issue from the above list again");
+                    }
+
                 }
 
                 break;
 
             case R.id.vB_ah_logout:
-                callLogOutAPI();
+                hideKeyBoard();
+                showLogOutDialog();
+
                 break;
 
             case R.id.vT_ah_cancel:
+                hideKeyBoard();
                 mErrorId.setText("");
                 break;
         }
 
     }
 
-    private void callLogOutAPI() {
+    /*Interface method receivad from Adapter*/
+    @Override
+    public void acceptError(String errorId,String team) {
+
+        notificationTeam=team;
+
+        mErrorId.setText(errorId);
+
+        Log.d("interfaceflowcheck","accept error with error id=>"+errorId);
+
+    }
+
+    /*Interface method receivad from Adapter*/
+    @Override
+    public void giveCA(final String errorId, final String team) {
+
+        Log.d("interfaceflowcheck","giveCA with error id=>"+errorId+""+team);
+        showActionPopup(errorId,employeeID,team);
+
+    }
+
+    /*Interface method receivad from Adapter*/
+    @Override
+    public void giveMOEComment(String errorId, String team) {
+
+        Log.d("interfaceflowcheck","giveCA with error id=>"+errorId+""+team);
+        callgetCaGivenAPI(errorId,team);
+
+    }
+
+    /*Interface method receivad from Adapter*/
+    @Override
+    public void checklist(String errorId) {
+        Log.d("interfaceflowcheck","checklist with error id=>"+errorId);
+        showCheckListPopup(errorId,employeeID);
+
+    }
+
+    private void showLogOutDialog() {
+        IS_USER_INTERACTING=true;
 
         LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
         View dialogView = inflater.inflate(R.layout.logout_dialog, null);
@@ -345,21 +537,10 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         logOut.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                vibrator.vibrate(50);
+               // vibrator.vibrate(100);
                 alertDialog.dismiss();
-
-                if(AndonUtils.isConnectedToInternet(HomeActivity.this))
-                {
-                    if(isLoggedIn)
-                    {
-                        new LogOut().execute();
-                        //showToast(employeeName+"  "+employeeID);
-                    }
-
-                }
-                else {
-                    showToast(getResources().getString(R.string.err_msg_nointernet));
-                }
+                IS_USER_INTERACTING=true;
+                callLogoutAPI();
 
             }
         });
@@ -370,6 +551,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
 
                 //Toast.makeText(HomeActivity.this, "Cancel", Toast.LENGTH_SHORT).show();
                 alertDialog.dismiss();
+                IS_USER_INTERACTING=false;
 
             }
         });
@@ -377,50 +559,73 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
-    private void callAcceptMessageAPI(String notificationID)
-    {
-        if(notificationID !=null && employeeTeam!=null && employeeID!=null)
-        {
-            if(AndonUtils.isConnectedToInternet(this))
+    public void callLogoutAPI() {
+
+        if (AndonUtils.isConnectedToInternet(getApplicationContext())) {
+            progressDialog=new ProgressDialog(HomeActivity.this);
+
+            if(progressDialog!=null)
             {
-                new AcceptMessage().execute();
+                if(!progressDialog.isShowing())
+                {
+
+                    progressDialog.setCancelable(false);
+                    progressDialog.setMessage("Please wait...");
+                    progressDialog.show();
+
+                    WebServices<LogOutResponse> webServices = new WebServices<LogOutResponse>(this);
+                    webServices.logOut(BASE_URL, WebServices.ApiType.logOut,  employeeID);
+                }
+                else {
+                    showSnackBar(this,"Please wait untill the current process to finish");
+                }
+            }
 
 
-            }
-            else {
-                showToast(getResources().getString(R.string.err_msg_nointernet));
-            }
         }
         else {
-            showSnackBar(this,"errorID or team empty");
+            Toast.makeText(this, getResources().getString(R.string.err_msg_nointernet) + "", Toast.LENGTH_SHORT).show();
         }
-
     }
+
 
     private void callAllNotificationsAPI()
     {
-        
-        
         if(AndonUtils.isConnectedToInternet(this))
         {
             //mProgressBar.setVisibility(View.VISIBLE);
             WebServices<AllNotificationsResponse> webServices = new WebServices<AllNotificationsResponse>(this);
             webServices.getAllNotifications(BASE_URL, WebServices.ApiType.allNotifications,employeeDepartment,employeValueStream);
-
-
         }
         else {
             showToast(getResources().getString(R.string.err_msg_nointernet));
         }
     }
 
-    private void callAllAvailableUsers()
+    private void callAllAvailableUsersAPI()
     {
         if(AndonUtils.isConnectedToInternet(this))
         {
             WebServices<AllAvailableUsersResponse> webServices = new WebServices<AllAvailableUsersResponse>(this);
             webServices.getAllUsers(BASE_URL, WebServices.ApiType.allAvailableUsers,employeeDepartment,employeValueStream);
 
+        }
+        else {
+            showToast(getResources().getString(R.string.err_msg_nointernet));
+        }
+    }
+
+    private void callAcceptMeaasgeAPI(String notificationId,String employeeId,String team)
+    {
+        if(AndonUtils.isConnectedToInternet(this))
+        {
+            progressDialog=new ProgressDialog(HomeActivity.this);
+            progressDialog.setCancelable(false);
+            progressDialog.setMessage("Accepting...");
+            progressDialog.show();
+
+            WebServices<InteractionResponse> webServices = new WebServices<InteractionResponse>(this);
+            webServices.acceptError(BASE_URL, WebServices.ApiType.acceptError,notificationId,employeeId,team);
 
         }
         else {
@@ -428,195 +633,231 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    public class LogOut extends AsyncTask<Void,Void,String>
+    private void callgiveCAAPI(String notificationId,String enteredMessage,String employeeId,String team)
     {
-        private String url;
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            if(employeeID!=null && ipAddress!=null)
-            {
-                url=BASE_URL+"loginprocess/"+employeeID;
-                url = url.replaceAll(" ", "%20");
-                url = url.replaceAll(" ", "%20");
-            }
-            else {
-                showToast("User is not logedin");
-            }
+        if(AndonUtils.isConnectedToInternet(this))
+        {
+            progressDialog=new ProgressDialog(HomeActivity.this);
+            progressDialog.setCancelable(false);
+            progressDialog.setMessage("Updating...");
+            progressDialog.show();
 
+            WebServices<InteractionResponse> webServices = new WebServices<InteractionResponse>(this);
+            webServices.giveCA(BASE_URL, WebServices.ApiType.giveCA,notificationId,enteredMessage,employeeId,team);
 
         }
-
-        @Override
-        protected String doInBackground(Void... voids) {
-            APIServiceHandler sh = new APIServiceHandler();
-            String jsonStr = sh.makeServiceCall(url, APIServiceHandler.GET);
-            return jsonStr;
+        else {
+            showToast(getResources().getString(R.string.err_msg_nointernet));
         }
+    }
 
-        @Override
-        protected void onPostExecute(String jsonStr) {
-            super.onPostExecute(jsonStr);
+    private void callgiveMOECommentAPI(String notificationId,String action,String employeeId,String team)
+    {
+        if(AndonUtils.isConnectedToInternet(this))
+        {
+            progressDialog=new ProgressDialog(HomeActivity.this);
+            progressDialog.setCancelable(false);
+            progressDialog.setMessage("Updating...");
+            progressDialog.show();
 
-            if(jsonStr!=null)
-            {
-                if (jsonStr.equals("Server TimeOut")) {
-                    Toast.makeText(getApplicationContext(), jsonStr, Toast.LENGTH_LONG).show();
-                }
+            WebServices<InteractionResponse> webServices = new WebServices<InteractionResponse>(this);
+            webServices.giveMOEComment(BASE_URL, WebServices.ApiType.giveMOEComment,notificationId,action,employeeId,team);
 
-                String resString=jsonStr.replaceAll("^\"|\"$", "");
-                if(resString.equalsIgnoreCase("true"))
+        }
+        else {
+            showToast(getResources().getString(R.string.err_msg_nointernet));
+        }
+    }
+
+    private void callgetCaGivenAPI(String notificationId,String team)
+    {
+        if(AndonUtils.isConnectedToInternet(this))
+        {
+            progressDialog=new ProgressDialog(HomeActivity.this);
+            progressDialog.setCancelable(false);
+            progressDialog.setMessage("Retriving details...");
+            progressDialog.show();
+
+            WebServices<InteractionResponse> webServices = new WebServices<InteractionResponse>(this);
+            webServices.getCAGiven(BASE_URL, WebServices.ApiType.getCAGiven,notificationId,team);
+
+        }
+        else {
+            showToast(getResources().getString(R.string.err_msg_nointernet));
+        }
+    }
+
+    private void callCheckListAPI(String notificationId,String response,String employeeId)
+    {
+        if(AndonUtils.isConnectedToInternet(this))
+        {
+            progressDialog=new ProgressDialog(HomeActivity.this);
+            progressDialog.setCancelable(false);
+            progressDialog.setMessage("Updating...");
+            progressDialog.show();
+
+            WebServices<InteractionResponse> webServices = new WebServices<InteractionResponse>(this);
+            webServices.checkList(BASE_URL, WebServices.ApiType.checklistConfirm,notificationId,response,employeeId);
+
+        }
+        else {
+            showToast(getResources().getString(R.string.err_msg_nointernet));
+        }
+    }
+
+
+
+
+    private void showMOEpoPup(String resolvedMessage, final String notificationID,final String employeeTeam) {
+
+        IS_USER_INTERACTING=true;
+        LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+        View dialogView = inflater.inflate(R.layout.moe_popup_layout, null);
+
+        final EditText mComment = dialogView.findViewById(R.id.vE_mpl_entered_text);
+        TextView mYes = dialogView.findViewById(R.id.vT_mpl_ok);
+        TextView mNo = dialogView.findViewById(R.id.vT_mpl_cancel);
+        TextView mMessage=dialogView.findViewById(R.id.vT_mpl_messagebody);
+
+        mMessage.setText(resolvedMessage);
+
+        builder = new AlertDialog.Builder(HomeActivity.this);
+        builder.setView(dialogView);
+        builder.setCancelable(false);
+
+        alertDialog = builder.create();
+        alertDialog.show();
+        mYes.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+
+                //replaceAll(System.getProperty("line.separator"), "") is used to remove new line characters from entered text
+                String enteredText = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
+
+                if(TextUtils.isEmpty(enteredText) || enteredText.length()<5)
                 {
-
-                    if(wl.isHeld())
-                    {
-                        wl.release();
-                    }
-                    stopService(new Intent(HomeActivity.this,MQTTservice.class));
-
-                    trimCache(HomeActivity.this);
-                    SharedPreferences preferences=getSharedPreferences(LoginActivity.LOGIN_PREFERENCE,MODE_PRIVATE);
-                    SharedPreferences.Editor editor=preferences.edit();
-                    editor.putBoolean("IS_LOGGEDIN",false);
-                    //editor.clear();
-                    editor.apply();
-
-                    finish();
-                    Intent logOutIntent=new Intent(HomeActivity.this,LoginActivity.class);
-                    //logOutIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(logOutIntent);
+                    //Toast.makeText(context, "Closing comment length should be atleast 5 characters", Toast.LENGTH_SHORT).show();
+                    showToast("Closing comment length should be atleast 5 characters");
                 }
                 else {
-                    showToast(resString);
+                    alertDialog.dismiss();
+                    callgiveMOECommentAPI(notificationID,enteredText,employeeID,employeeTeam);
+                   /* callMOEClosingAPI(notificationID,enteredText,employeeID,employeeTeam);*/
+                    IS_USER_INTERACTING=false;
                 }
-            }
+                hideKeyBoard();
 
-        }
+               /* refreshList();*/
+            }
+        });
+
+        mNo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                alertDialog.dismiss();
+                hideKeyBoard();
+                IS_USER_INTERACTING=false;
+                refreshList();
+            }
+        });
+
     }
 
-    private class AcceptMessage extends AsyncTask<Void,Void,String>
+    private void showActionPopup(final String notificationID, final String employeeID, final String employeeTeam) {
+        IS_USER_INTERACTING=true;
+
+        LayoutInflater inflater = (LayoutInflater)getSystemService(LAYOUT_INFLATER_SERVICE);
+        View dialogView = inflater.inflate(R.layout.containment_action_layout, null);
+
+        final EditText mComment = dialogView.findViewById(R.id.vMLT_entered_text);
+        TextView mYes = dialogView.findViewById(R.id.vT_cal_ok);
+        TextView mNo = dialogView.findViewById(R.id.vT_cal_cancel);
+
+        builder = new AlertDialog.Builder(HomeActivity.this);
+        builder.setView(dialogView);
+        builder.setCancelable(false);
+
+        alertDialog = builder.create();
+        alertDialog.show();
+
+        mYes.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                //replaceAll(System.getProperty("line.separator"), "") is used to remove new line characters from entered text
+                String enteredMessage = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
+                if (TextUtils.isEmpty(enteredMessage) || enteredMessage.length() < 5) {
+                    //Toast.makeText(context, "Closing action should be atleast of 5 characters", Toast.LENGTH_SHORT).show();
+                    showToast("Closing action should be atleast of 5 characters");
+                } else {
+                    alertDialog.dismiss();
+                    callgiveCAAPI(notificationID,enteredMessage,employeeID,employeeTeam);
+                    //callContainmentActionAPI(notificationID,enteredMessage,employeeID,employeeTeam);
+
+                }
+                hideKeyBoard();
+                IS_USER_INTERACTING=false;
+
+            }
+        });
+
+        mNo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                IS_USER_INTERACTING=false;
+                refreshList();
+                alertDialog.dismiss();
+                hideKeyBoard();
+
+            }
+        });
+
+
+    }
+
+    private void showCheckListPopup(final String notificationID, final String employeeID)
     {
+        IS_USER_INTERACTING=true;
+        LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+        View dialogView = inflater.inflate(R.layout.check_list_layout, null);
 
-        private String url;
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            if(employeeID!=null && ipAddress!=null &&employeeTeam!=null && notificationID!=null)
-            {
-                url=BASE_URL+"notification/accept/"+ notificationID + "/" + employeeID + "/" + employeeTeam;;
-                url = url.replaceAll(" ", "%20");
-                url = url.replaceAll(" ", "%20");
+        TextView mYes = dialogView.findViewById(R.id.vT_cll_yes);
+        TextView mNo = dialogView.findViewById(R.id.vT_cll_no);
 
-                Log.d("accepturl",url);
+        builder = new AlertDialog.Builder(HomeActivity.this);
+        builder.setView(dialogView);
+        builder.setCancelable(false);
 
-                mErrorId.setText("");
-            }
-            else {
-                showToast("you cant accept this issue");
-            }
+        alertDialog = builder.create();
+        alertDialog.show();
 
-
-        }
-
-        @Override
-        protected String doInBackground(Void... voids) {
-            APIServiceHandler sh = new APIServiceHandler();
-            String jsonStr = sh.makeServiceCall(url, APIServiceHandler.GET);
-            return jsonStr;
-        }
-
-        @Override
-        protected void onPostExecute(String jsonStr) {
-            super.onPostExecute(jsonStr);
-
-            if(jsonStr!=null)
-            {
-                if (jsonStr.equals("Server TimeOut")) {
-                    Toast.makeText(getApplicationContext(), jsonStr, Toast.LENGTH_LONG).show();
-                }
-
-                String resString=jsonStr.replaceAll("^\"|\"$", "");
-                if(resString.equalsIgnoreCase("true"))
-                {
-                    recreate();
-                }
-                else if(resString.equalsIgnoreCase("false"))
-                {
-                    showToast("server busy wait for a while");
-                }
-                else {
-                    showToast(resString);
-                }
-            }
-
-        }
-    }
-
-    private void subscribeToMQTT() {
-        String topic = employeeDepartment.trim();
-
-        if (topic != null && topic.isEmpty() == false)
-        {
-            Bundle data = new Bundle();
-            data.putCharSequence(MQTTservice.TOPIC, topic);
-            Message msg = Message.obtain(null, MQTTservice.SUBSCRIBE);
-            msg.setData(data);
-            msg.replyTo = serviceHandler;
-            try
-            {
-                if(service!=null)
-                {
-                    service.send(msg);
-
-                }
+        mYes.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hideKeyBoard();
+                alertDialog.dismiss();
+                callCheckListAPI(notificationID,"Yes",employeeID);
+                IS_USER_INTERACTING=false;
 
             }
-            catch (RemoteException e)
-            {
-                e.printStackTrace();
-                showToast("Subscribe failed with exception:" + e.getMessage());
-                //result.setText("Subscribe failed with exception:" + e.getMessage());
+        });
+
+        mNo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hideKeyBoard();
+                alertDialog.dismiss();
+                callCheckListAPI(notificationID,"No",employeeID);
+                IS_USER_INTERACTING=false;
+
             }
-        }
-        else
-        {
-            showToast("Topic required.");
-           /* result.setText("Topic required.");*/
-        }
+        });
 
-
-    }
-
-
-    public void notificationBox(String msg) {
-        NotificationCompat.InboxStyle inboxStyle = new NotificationCompat.InboxStyle();
-
-        Intent notificationIntent = new Intent(getApplicationContext(), LoginActivity.class);
-
-        PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, 0);
-        NotificationManager notif = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (notif != null) {
-            notif.cancelAll();
-        }
-        Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        Notification notify = new Notification.Builder(getApplicationContext())
-                .setContentTitle("Andon")
-                .setContentText(msg)
-                .setSound(alarmSound)
-                .setContentIntent(contentIntent)
-                .setSmallIcon(R.drawable.abc).build();
-
-        notify.flags |= Notification.FLAG_AUTO_CANCEL;
-        if (notif != null) {
-            notif.notify(0, notify);
-        }
-              /*  finish();
-                startActivity(getIntent());*/
     }
 
     @Override
     public void onBackPressed() {
-        //super.onBackPressed();
         showExitDialog();
         //super.onBackPressed();
     }
@@ -638,18 +879,11 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
             @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
             @Override
             public void onClick(View v) {
-                vibrator.vibrate(200);
+                //vibrator.vibrate(200);
                 alertDialog.dismiss();
                 //freeMemory();
-                finish();
-                finishAffinity();
-
-               /* Visibility returnTransition = buildReturnTransition();
-                getWindow().setReturnTransition(returnTransition);*/
-
-                finishAfterTransition();
-
-
+                 HomeActivity.this.finish();
+                 finishAffinity();
             }
         });
         mNo.setOnClickListener(new View.OnClickListener() {
@@ -680,7 +914,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         snackbar = Snackbar.make(activity.findViewById(android.R.id.content), message,Snackbar.LENGTH_LONG);
         View view = snackbar.getView();
         view.setBackgroundColor(Color.BLACK);
-        TextView tv = (TextView)view.findViewById(android.support.design.R.id.snackbar_text);
+        TextView tv = view.findViewById(android.support.design.R.id.snackbar_text);
         tv.setTextColor(Color.WHITE);
         tv.setTextSize(16);
         snackbar.show();
@@ -690,80 +924,309 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onResponse(Object response, WebServices.ApiType URL, boolean isSucces, int code) {
 
-        switch (URL)
-        {
+        switch (URL) {
             case allNotifications:
-               /* if(mProgressBar.isShown())
+                if(progressDialog!=null)
                 {
-                    mProgressBar.setVisibility(View.GONE);
-                }*/
-               if(mSwipeRefreshLayout!=null)
-               {
-                   if(mSwipeRefreshLayout.isRefreshing())
-                   {
-                       mSwipeRefreshLayout.setRefreshing(false);
-                   }
-
-               }
-
-                AllNotificationsResponse notificationsResponse= (AllNotificationsResponse) response;
-                if(isSucces)
-                {
-
-                    if(code!=0)
+                    if(progressDialog.isShowing())
                     {
-                        if(code==200)
-                        {
-                            if(notificationsResponse!=null)
-                            {
-                                notificationList=notificationsResponse.getNotificationList();
+                        progressDialog.dismiss();
+                    }
+                }
+                if (mSwipeRefreshLayout != null) {
+                    if (mSwipeRefreshLayout.isRefreshing()) {
+                        mSwipeRefreshLayout.setRefreshing(false);
+                    }
+
+                }
+
+                AllNotificationsResponse notificationsResponse = (AllNotificationsResponse) response;
+                if (isSucces) {
+
+                    if (code != 0) {
+                        if (code == 200) {
+                            if (notificationsResponse != null) {
+                                notificationList = notificationsResponse.getNotificationList();
                                 setNotificationAdapter(notificationList);
 
-                            }
-                            else {
-                                showSnackBar(this,"allNotificationsResponse null");
+                            } else {
+                                showSnackBar(this, "Invalid response from server");
 
                             }
                             //showSnackBar(this," outside allNotificationsResponse block");
 
 
-                        }
-                        else {
-                            showSnackBar(this,"Something went wrong try again later");
+                        } else {
+                            showSnackBar(this, "Something went wrong try again later");
                         }
                     }
-                }
-                else {
+                } else {
                     //API call failed
-                    showSnackBar(this,"API call failed");
+                    showSnackBar(this, "Server is busy");
                 }
                 break;
             case allAvailableUsers:
-                if(isSucces)
+                if(progressDialog!=null)
                 {
-                    AllAvailableUsersResponse allAvailableUsersResponse= (AllAvailableUsersResponse) response;
-                    if(code!=0)
+                    if(progressDialog.isShowing())
                     {
-                        if(code==200)
-                        {
-                            if(allAvailableUsersResponse!=null)
-                            {
-                                subscribeToMQTT();
-                                employeeStatusList=allAvailableUsersResponse.getEmployeeStatusList();
+                        progressDialog.dismiss();
+                    }
+                }
+                if (isSucces) {
+                    AllAvailableUsersResponse allAvailableUsersResponse = (AllAvailableUsersResponse) response;
+                    if (code != 0) {
+                        if (code == 200) {
+                            if (allAvailableUsersResponse != null) {
+                                //subscribeToMQTT();
+                                employeeStatusList = allAvailableUsersResponse.getEmployeeStatusList();
                                 setAllUsersAdapter(employeeStatusList);
 
                             }
-                        }
-                        else {
-                            showSnackBar(this,"Something went wrong try again later");
+                        } else {
+                            showSnackBar(this, "Something went wrong try again later");
                         }
                     }
 
-                }
-                else {
+                } else {
                     //API call failed
-                    showSnackBar(this,"API call failed");
+                    showSnackBar(this, "Server is busy");
 
+                }
+                break;
+
+            case acceptError:
+                if(progressDialog!=null)
+                {
+                    if(progressDialog.isShowing())
+                    {
+                        progressDialog.dismiss();
+                    }
+                }
+
+                InteractionResponse acceptErrorResponse = (InteractionResponse) response;
+                if (isSucces) {
+                    if (code == 200) {
+                        if (acceptErrorResponse != null) {
+                            if (acceptErrorResponse.getMessage().equalsIgnoreCase("true")) {
+                                //success
+                                refreshList();
+                            } else {
+                                showToast(acceptErrorResponse.getMessage());
+                            }
+
+
+                        } else {
+                            showSnackBar(this, "No response from server");
+                        }
+                    } else {
+                        //failure
+                        showSnackBar(this, "Something went wrong try again later");
+                    }
+                } else {
+                    //API call failed
+                    showSnackBar(this, "Server is busy");
+                }
+                break;
+
+            case giveCA:
+                if(progressDialog!=null)
+                {
+                    if(progressDialog.isShowing())
+                    {
+                        progressDialog.dismiss();
+                    }
+                }
+
+                InteractionResponse giveCAResponse = (InteractionResponse) response;
+                if (isSucces) {
+                    if (code == 200) {
+                        if (giveCAResponse != null) {
+
+                            if (giveCAResponse.getMessage().equalsIgnoreCase("true")) {
+                                //success
+                                showToast("Message saved");
+                                refreshList();
+                            } else {
+                                showToast(giveCAResponse.getMessage());
+                            }
+
+
+                        } else {
+                            showSnackBar(this, "No response from server");
+                        }
+                    } else {
+                        //failure
+                        showSnackBar(this, "Something went wrong try again later");
+                    }
+                } else {
+                    //API call failed
+                    showSnackBar(this, "Server is busy");
+                }
+                break;
+
+
+            case checklistConfirm:
+                if(progressDialog!=null)
+                {
+                    if(progressDialog.isShowing())
+                    {
+                        progressDialog.dismiss();
+                    }
+                }
+
+                InteractionResponse checklistConfirmResponse = (InteractionResponse) response;
+                if (isSucces) {
+                    if (code == 200) {
+                        if (checklistConfirmResponse != null) {
+
+                            if (checklistConfirmResponse.getMessage().equalsIgnoreCase("true")) {
+                                //success
+                                refreshList();
+                                showToast("Need to Fill the checklist in Line");
+                            } else  if (checklistConfirmResponse.getMessage().equalsIgnoreCase("false")){
+                                refreshList();
+                            }
+                            else {
+                                showToast(checklistConfirmResponse.getMessage());
+                            }
+
+                        } else {
+                            showSnackBar(this, "No response from server");
+                        }
+
+                    } else {
+                        //failure
+                        showSnackBar(this, "Something went wrong try again later");
+                    }
+                } else {
+                    //API call failed
+                    showSnackBar(this, "Server is busy");
+                }
+                break;
+
+            case getCAGiven:
+                if(progressDialog!=null)
+                {
+                    if(progressDialog.isShowing())
+                    {
+                        progressDialog.dismiss();
+                    }
+                }
+                InteractionResponse getCAGivenResponse = (InteractionResponse) response;
+                if (isSucces) {
+                    if (code == 200) {
+                        if (getCAGivenResponse != null) {
+
+                                //success
+                                String[] msg = getCAGivenResponse.getMessage().split("/");
+                            if (msg.length > 2) {
+                                String msgID = msg[1].replace("\"", "");
+                                String resolvedMessage = "Resolver Error" + ": " + msg[2].replace("\"", "");
+                                String team = msg[3].replace("\"", "");
+
+                                showMOEpoPup(resolvedMessage, msgID, team);
+                            } else {
+                                showToast(getCAGivenResponse.getMessage());
+                            }
+
+
+
+                        } else {
+                            showSnackBar(this, "No response from server");
+                        }
+                    } else {
+                        //failure
+                        showSnackBar(this, "Something went wrong try again later");
+                    }
+                } else {
+                    //API call failed
+                    showSnackBar(this, "Server is busy");
+                }
+                break;
+
+            case giveMOEComment:
+                if(progressDialog!=null)
+                {
+                    if(progressDialog.isShowing())
+                    {
+                        progressDialog.dismiss();
+                    }
+                }
+                InteractionResponse giveMOECommentResponse = (InteractionResponse) response;
+                if (isSucces) {
+                    if (code == 200) {
+                        if (giveMOECommentResponse != null) {
+                            if (giveMOECommentResponse.getMessage().equalsIgnoreCase("true")) {
+                                //success
+                                showToast("Message saved");
+
+                                //To recreate activity
+                                refreshList();
+                            } else {
+                                showToast(giveMOECommentResponse.getMessage());
+                            }
+
+                        } else {
+                            showSnackBar(this, "No response from server");
+                        }
+
+
+                    } else {
+                        //failure
+                        showSnackBar(this, "Something went wrong try again later");
+                    }
+                } else {
+                    //API call failed
+                    showSnackBar(this, "Server is busy");
+                }
+                break;
+
+            case logOut:
+                if(progressDialog!=null)
+                {
+                    if(progressDialog.isShowing())
+                    {
+                        progressDialog.dismiss();
+                    }
+                }
+                LogOutResponse logOutResponse = (LogOutResponse) response;
+                if (isSucces) {
+                    if (logOutResponse != null) {
+                        if (logOutResponse.getMessage() != null) {
+                            if (logOutResponse.getMessage().equalsIgnoreCase("success")) {
+
+                                MQTTService1.unsubscribeMQTT();
+                                stopService(new Intent(HomeActivity.this, MQTTService1.class));
+
+                                SharedPreferences preferences = getSharedPreferences(LoginActivity.LOGIN_PREFERENCE, MODE_PRIVATE);
+                                SharedPreferences.Editor editor = preferences.edit();
+                                editor.putBoolean("IS_LOGGEDIN", false);
+                                //editor.clear();
+                                editor.apply();
+
+                                jobScheduler.cancel(JOB_ID);
+
+                                Intent logOutIntent = new Intent(HomeActivity.this, LoginActivity.class);
+                                logOutIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                                logOutIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                startActivity(logOutIntent);
+                                finish();
+                                trimCache(HomeActivity.this);
+
+                            } else {
+                                showSnackBar(this, "Logout failed please try again");
+
+                            }
+                        } else {
+                            showSnackBar(this, "Logout failed please try again");
+                        }
+                    } else {
+                        showSnackBar(this, "No response from server");
+                    }
+                } else {
+                    //API call failed
+                    showSnackBar(this, "Logout failed");
                 }
                 break;
         }
@@ -783,12 +1246,11 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     private void setNotificationAdapter(List<NotificationList> notificationList) {
         if(notificationList!=null)
         {
-
             //Log.d("notificationdetails","error id=>"+notificationList.get(0).getNotificationId()+"error=>"+notificationList.get(0).getError());
             //Toast.makeText(this, "notificationList not null", Toast.LENGTH_SHORT).show();
             if(!notificationList.isEmpty())
             {
-                notificationAdapter=new NotificationAdapter(this,notificationList,mErrorId);
+                notificationAdapter=new NotificationAdapter(this,notificationList);
                 mNotificationsRecyclerView.setAdapter(notificationAdapter);
                 notificationAdapter.notifyDataSetChanged();
 
@@ -812,20 +1274,66 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         mSwipeRefreshLayout.setColorSchemeColors(getResources().getColor(R.color.colorPrimary),getResources().getColor(R.color.colorAccent),
                 getResources().getColor(R.color.green));
         refreshContent();
-
+        //refreshList();
+        /*refreshContentData();*/
     }
 
     public void refreshContent() {
-        callAllNotificationsAPI();
-        notificationAdapter.notifyDataSetChanged();
-        /*new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                callAllNotificationsAPI();
-                mSwipeRefreshLayout.setRefreshing(false);
+        /*Intent launchHomeActivity = new Intent(HomeActivity.this, HomeActivity.class);
+        launchHomeActivity.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(launchHomeActivity);*/
 
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        //To remove all the previous notification icons from notification bar
+        if (notificationManager != null) {
+            notificationManager.cancelAll();
+        }
+       /* callAllAvailableUsersAPI();
+        callAllNotificationsAPI();*/
+        finish();
+        overridePendingTransition(0, 0);
+        startActivity(getIntent());
+
+    }
+    public void refreshList()
+    {
+        /*NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        //To remove all the previous notification icons from notification bar
+
+        if (notificationManager != null) {
+            notificationManager.cancelAll();
+        }*/
+        finish();
+        startActivity(getIntent());
+        overridePendingTransition(0, 0);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.d("flowcheck","inside onPause()");
+        if(alertDialog!=null)
+        {
+            if(alertDialog.isShowing())
+            {
+                alertDialog.dismiss();
             }
-        },3000);*/
+        }
+
+        if(progressDialog!=null)
+        {
+            if(progressDialog.isShowing())
+            {
+                progressDialog.dismiss();
+            }
+        }
+
+        if (mSwipeRefreshLayout != null) {
+            if (mSwipeRefreshLayout.isRefreshing()) {
+                mSwipeRefreshLayout.setRefreshing(false);
+            }
+
+        }
     }
 
 
@@ -833,303 +1341,62 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     protected void onStop()
     {
         super.onStop();
-        //unbindService(serviceConnection);
-//        trimCache(HomeActivity.this);
-        freeMemory();
+        stopTimer();
+        Log.d("flowcheck","inside onStop()");
+        EventBus.getDefault().unregister(this);
+        hideKeyBoard();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        Log.d("flowcheck","inside onDestroy()");
+
+        hideKeyBoard();
+
+       if(alertDialog!=null)
+       {
+           if(alertDialog.isShowing())
+           {
+               alertDialog.dismiss();
+           }
+       }
+
+        refreshHandler.removeCallbacksAndMessages(null);
+       /*If the user is still logedin send broadcast to start service*/
+        if(isLoggedIn)
+        {
+            Intent broadcastIntent = new Intent("uk.ac.shef.oak.ActivityRecognition.RestartSensor");
+            sendBroadcast(broadcastIntent);
+        }
+        //unregisterReceiver(mybroadcast);
 
         freeMemory();
-
-        /*if(wl!=null)
-        {
-            wl.release();
-        }*/
-        //trimCache(HomeActivity.this);
-
-        if(serviceConnection!=null)
-        {
-            unbindService(serviceConnection);
-           // stopService(new Intent(this, MQTTservice.class));
-            unregisterReceiver(pushReceiver);
-        }
+       // trimCache(this);
     }
-
-    @Override
-    protected void onResume()
-    {
-        super.onResume();
-        /*subscribeToMQTT();*/
-        if(wl!=null)
-        {
-            wl.acquire();//5*60*60*1000L /*5 hours*/
-            if(wl.isHeld())
-            {
-                Log.d("wakelock","Wake lock acquired in activity");
-            }
-
-        }
-        registerReceiver(pushReceiver, intentFilter);
-    }
-
-
-    @Override
-    protected void onPause()
-    {
-        super.onPause();
-        //unregisterReceiver(pushReceiver);
-    }
-
-    private ServiceConnection serviceConnection = new ServiceConnection()
-    {
-        @Override
-        public void onServiceConnected(ComponentName arg0, IBinder binder)
-        {
-            service = new Messenger(binder);
-            Bundle data = new Bundle();
-            //data.putSerializable(MQTTservice.CLASSNAME, MainActivity.class);
-            data.putCharSequence(MQTTservice.INTENTNAME, "com.example.MQTT.PushReceived");
-            Message msg = Message.obtain(null, MQTTservice.REGISTER);
-            msg.setData(data);
-            msg.replyTo = serviceHandler;
-            try
-            {
-                service.send(msg);
-            }
-            catch (RemoteException e)
-            {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName arg0)
-        {
-
-        }
-    };
-    public class ServiceHandler extends Handler
-    {
-        @Override
-        public void handleMessage(Message msg)
-        {
-            switch (msg.what)
-            {
-                case MQTTservice.SUBSCRIBE: 	break;
-                case MQTTservice.PUBLISH:		break;
-                case MQTTservice.REGISTER:		break;
-                default:
-                    super.handleMessage(msg);
-                    return;
-            }
-
-            Bundle b = msg.getData();
-            if (b != null)
-            {
-                //TextView result = (TextView) findViewById(R.id.textResultStatus);
-                Boolean status = b.getBoolean(MQTTservice.STATUS);
-                if (!status)
-                {
-                    //Log.d("messagedata","false");
-                    //showToast("fail");
-                    /*result.setText("Fail");*/
-                }
-                else
-                {
-                    //Log.d("messagedata",b+"");
-                    //showToast("Success");
-                    //showToast(b+"");
-                    /*result.setText("Success");*/
-                }
-            }
-        }
-    }
-
-
-
-    public class PushReceiver extends BroadcastReceiver
-    {
-        @Override
-        public void onReceive(Context context, Intent i)
-        {
-            String topic = i.getStringExtra(MQTTservice.TOPIC);
-            String message = i.getStringExtra(MQTTservice.MESSAGE);
-
-            Log.d("notificationcheck","meaasge body in home activity"+message);
-            if(message.startsWith("#"))
-            {
-                //mUsersRecyclerView.refreshDrawableState();
-                //callAllAvailableUsers();
-
-               // Log.d("notificationcheck","Inside Alert from   # if block of activity");
-                vibrator.vibrate(900);
-                recreate();
-            }
-            else if (message.contains(employeeID + "/")) {
-                // Log.d("notificationcheck","Inside Alert from   employeeid/ if block of activity");
-                recreate();
-                vibrator.vibrate(1000);
-            } else if (message.equals("$" + employeeID)) {
-               // Log.d("notificationcheck","Inside Alert from  $ employeeid if block of activity");
-                vibrator.vibrate(1000);
-                recreate();
-
-            } else if (message.contains(employeeDepartment)) {
-
-               // Log.d("notificationcheck","Inside Alert from  employeeDepartment if block of activity");
-                recreate();
-                vibrator.vibrate(5000);
-                notificationBox("");
-
-
-               /* Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-
-                Intent in=new Intent(getApplicationContext(),LoginActivity.class);
-                PendingIntent pi=PendingIntent.getActivity(getApplicationContext(), 0, in, 0);
-                //build the notification
-                Notification.Builder nc = new Notification.Builder(context);
-                nc.setAutoCancel(true)
-                        .setContentTitle("Containment Action done")
-                        .setContentIntent(pi)
-                        .setContentText("expecting MOE comment to close ticket")
-                        .setSmallIcon(R.drawable.abc)
-                        .setSound(alarmSound);
-
-                Notification notification = nc.build();
-                NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                nm.notify(0, notification);*/
-            }
-            else if(message.contains("Alert from")){
-
-                //Log.d("notificationcheck","Inside Alert from if block of activity");
-                vibrator.vibrate(9000);
-                notificationBox(message);
-                recreate();
-
-            }
-
-           // callAllAvailableUsers();
-           // Toast.makeText(context, "Push message received - " + topic + ":" + message, Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void pushUserDetailsToServer() {
-        String imeiNumber,ipaddress,ntUserId,userName;
-        SharedPreferences devicePreferences=getSharedPreferences("DEVICE_PREFERENCES",MODE_PRIVATE);
-        imeiNumber=devicePreferences.getString("IMEI_NUMBER",null);
-        ipaddress=devicePreferences.getString("IP_ADDRESS",null);
-        ntUserId=devicePreferences.getString("NT_USERID",null);
-        userName=devicePreferences.getString("USER_NAME",null);
-
-        CallPushUserDetailsToServerAPI obj=new CallPushUserDetailsToServerAPI(imeiNumber,ipaddress,ntUserId,userName);
-        obj.execute();
-
-    }
-
-    @SuppressLint("StaticFieldLeak")
-    private class CallPushUserDetailsToServerAPI extends AsyncTask<Void,Void,String>
-    {
-        String url="";
-        String imeiNumber,ipaddress,ntUserId,userName;
-
-        public CallPushUserDetailsToServerAPI(String imeiNumber, String ipaddress, String ntUserId, String userName) {
-            this.imeiNumber = imeiNumber;
-            this.ipaddress = ipaddress;
-            this.ntUserId = ntUserId;
-            this.userName = userName;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            if(imeiNumber!=null && ipAddress!=null && ipaddress!=null && ntUserId!=null && userName!=null)
-            {
-                url=BASE_URL+"userinfo/"+userName+"/"+ntUserId+"/"+imeiNumber+"/"+ipaddress;
-                url = url.replaceAll(" ", "%20");
-                url = url.replaceAll(" ", "%20");
-            }
-            else {
-                showToast("User is not logedin");
-            }
-        }
-
-        @Override
-        protected String doInBackground(Void... voids) {
-            APIServiceHandler sh = new APIServiceHandler();
-            String jsonStr = sh.makeServiceCall(url, APIServiceHandler.GET);
-            return jsonStr;
-        }
-
-        @Override
-        protected void onPostExecute(String jsonStr) {
-            super.onPostExecute(jsonStr);
-
-            if(jsonStr!=null)
-            {
-                if (jsonStr.equals("Server TimeOut")) {
-                    Toast.makeText(getApplicationContext(), jsonStr, Toast.LENGTH_LONG).show();
-                }
-
-                String resString=jsonStr.replaceAll("^\"|\"$", "");
-                if(resString.equalsIgnoreCase("success"))
-                {
-                    showToast(resString);
-                }
-                else {
-                    showToast("Fail to push user details");
-                }
-            }
-
-        }
-    }
-
-   /* private final Runnable clearCacheRunnable =new Runnable() {
-        @Override
-        public void run() {
-            trimCache(HomeActivity.this);
-            //showToast("cache cleared");
-
-            cacheHandler.postDelayed(clearCacheRunnable,10*60*1000); //10 minutes
-        }
-    };*/
 
    /*This will clear the cache of our app presented in current context*/
-    public static void trimCache(Context context) {
-        try {
-            File dir = context.getCacheDir();
-            File externalCacheDir=context.getExternalCacheDir();
-            if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
-            {
-                deleteExternalDir(externalCacheDir);
+   public static void trimCache(Context context) {
+       try {
 
-            }
+           File dir = context.getCacheDir();
+           if (dir != null && dir.isDirectory()) {
+               //deleteDir(dir);
 
-            deleteDir(dir);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+               if(deleteDir(dir))
+               {
+                   Log.d("clearcache","cache cleared");
 
-    private static boolean deleteExternalDir(File dir) {
+               }
+               else {
+                   Log.d("clearcache","can not clear cache");
+               }
+           }
 
-        if (dir != null && dir.isDirectory()) {
-            String[] children = dir.list();
-            for (int i = 0; i < children.length; i++) {
-                boolean success = deleteExternalDir(new File(dir, children[i]));
-                if (!success) {
-                    return false;
-                }
-            }
-            return dir.delete();
-        }
-        else {
-            return false;
-        }
-    }
-
+       } catch (Exception e) {
+           e.printStackTrace();
+       }
+   }
     public static boolean deleteDir(File dir) {
         if (dir != null && dir.isDirectory()) {
             String[] children = dir.list();
@@ -1139,6 +1406,13 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                     return false;
                 }
             }
+
+            Log.d("cachedfile",dir.getAbsolutePath());
+
+            return dir.delete();
+        }
+        else if(dir.isFile())
+        {
             return dir.delete();
         }
         else {
@@ -1150,6 +1424,200 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         System.runFinalization();
         Runtime.getRuntime().gc();
         System.gc();
+    }
+
+
+    /* To Receive Event from background service*/
+
+    @Subscribe(threadMode = ThreadMode.ASYNC)
+    public void onMessageEvent(NotificationEvent event) {
+       /* Do something */
+       final String message=event.getMessage();
+       AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+       Log.d("receivedevent","received event=>"+message);
+        //Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+
+       /* //To bring back to ringing mode
+        if (manager != null) {
+            int valuess = 15;//range(0-15)
+            manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+            manager.setStreamVolume(AudioManager.STREAM_MUSIC, manager.getStreamMaxVolume(valuess), 0);
+            manager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, manager.getStreamMaxVolume(valuess), 0);
+            manager.setStreamVolume(AudioManager.STREAM_ALARM, manager.getStreamMaxVolume(valuess), 0);
+        }*/
+
+        if(message.startsWith("Alert from"))
+        {
+
+            /*if (manager != null) {
+               int streamMaxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_RING);
+                //Toast.makeText(this, Integer.toString(streamMaxVolume), Toast.LENGTH_LONG).show(); //I got 7
+                manager.setStreamVolume(AudioManager.STREAM_RING, streamMaxVolume, AudioManager.FLAG_ALLOW_RINGER_MODES|AudioManager.FLAG_PLAY_SOUND);
+            }*/
+
+
+            this.refreshHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if(!IS_USER_INTERACTING)
+                    {
+                        //refreshContent();
+                        refreshList();
+                    }
+                    refreshHandler.removeCallbacksAndMessages(null);
+                   /* pushUserDetailsToServer();*/
+                }
+            },2000);
+
+            NotificationClass.showNotificationToUser(HomeActivity.this,message);
+           // pushUserDetailsToServer();
+
+        }
+        else if(message.contains("MOE"))
+        {
+           /* if (manager != null) {
+                int streamMaxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_RING);
+                //Toast.makeText(this, Integer.toString(streamMaxVolume), Toast.LENGTH_LONG).show(); //I got 7
+                manager.setStreamVolume(AudioManager.STREAM_RING, streamMaxVolume, AudioManager.FLAG_ALLOW_RINGER_MODES|AudioManager.FLAG_PLAY_SOUND);
+            }*/
+            this.refreshHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if(!IS_USER_INTERACTING)
+                    {
+                        // refreshContent();
+                        refreshList();
+                    }
+
+                  /*  showNotificationToUser("Containment Action done");*/
+                    refreshHandler.removeCallbacksAndMessages(null);
+                }
+            },2000);
+            //refreshContent();
+            NotificationClass.showNotificationToMOE(HomeActivity.this,"Containment Action done");
+
+
+        }
+        else {
+           /* if (manager != null) {
+                int streamMaxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_RING);
+               // Toast.makeText(this, Integer.toString(streamMaxVolume), Toast.LENGTH_LONG).show(); //I got 7
+                manager.setStreamVolume(AudioManager.STREAM_RING, streamMaxVolume, AudioManager.FLAG_ALLOW_RINGER_MODES|AudioManager.FLAG_PLAY_SOUND);
+            }*/
+
+            this.refreshHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+
+                    // refreshContent();
+                    if (!IS_USER_INTERACTING) {
+                       // refreshContent();
+                        refreshList();
+                        refreshHandler.removeCallbacksAndMessages(null);
+                    }
+                }
+            }, 1000);
+
+            NotificationClass.showNotificationToUser(HomeActivity.this);
+
+            //To mute ringing
+            if (manager != null) {
+                manager.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
+            }
+
+            //To bring back to ringing mode
+            if (manager != null) {
+                manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+            }
+        }
+
+   }
+    private void pushUserDetailsToServer() {
+        String imeiNumber,ipaddress,ntUserId,userName;
+        SharedPreferences devicePreferences=getSharedPreferences("DEVICE_PREFERENCES",MODE_PRIVATE);
+        imeiNumber=devicePreferences.getString("IMEI_NUMBER",null);
+        ipaddress=devicePreferences.getString("IP_ADDRESS",null);
+        ntUserId=devicePreferences.getString("NT_USERID",null);
+        userName=devicePreferences.getString("USER_NAME",null);
+
+       CallPushUserDetailsToServerAPI obj=new CallPushUserDetailsToServerAPI(getApplicationContext(),imeiNumber,ipaddress,ntUserId,userName);
+       obj.execute();
+
+    }
+
+    private static class CallPushUserDetailsToServerAPI extends AsyncTask<Void,Void,Void>
+    {
+        String url="";
+        String imeiNumber,ipaddress,ntUserId,userName;
+        String ip;
+
+        CallPushUserDetailsToServerAPI(Context activity, String imeiNumber, String ipaddress, String ntUserId, String userName) {
+            this.imeiNumber = imeiNumber;
+            this.ipaddress = ipaddress;
+            this.ntUserId = ntUserId;
+            this.userName = userName;
+
+            SharedPreferences sharedPreferences=activity.getSharedPreferences(LoginActivity.IP_ADDRESS_PREFERENCE,MODE_PRIVATE);
+            ip=sharedPreferences.getString("IPADDRESS",null);
+
+            if(imeiNumber!=null && ipAddress!=null && ipaddress!=null && ntUserId!=null && userName!=null)
+            {
+
+                Log.d("ipaddresscheck", "ip in service=>"+ip);
+                url= "http://"+ip+":8080/AndonWebservices/rest/userinfo/"+userName+"/"+ntUserId+"/"+imeiNumber+"/"+ipaddress;
+                url = url.replaceAll(" ", "%20");
+                url = url.replaceAll(" ", "%20");
+            }
+        }
+
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            APIServiceHandler sh = new APIServiceHandler();
+            String jsonStr = sh.makeServiceCall(url, APIServiceHandler.GET);
+
+            return null;
+        }
+
+    }
+
+    private void hideKeyBoard() {
+        try {
+            //InputMethodManager is used to hide the virtual keyboard from the user after finishing the user input
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            assert imm != null;
+            if (imm.isAcceptingText()) {
+                imm.hideSoftInputFromWindow(this.getCurrentFocus().getWindowToken(), 0);
+            }
+        } catch (NullPointerException e) {
+            Log.e("Exception", e.getMessage() + ">>");
+        }
+
+    }
+
+    public static boolean isAppIsInBackground(Context context) {
+        boolean isInBackground = true;
+        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT_WATCH) {
+            List<ActivityManager.RunningAppProcessInfo> runningProcesses = am.getRunningAppProcesses();
+            for (ActivityManager.RunningAppProcessInfo processInfo : runningProcesses) {
+                if (processInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+                    for (String activeProcess : processInfo.pkgList) {
+                        if (activeProcess.equals(context.getPackageName())) {
+                            isInBackground = false;
+                        }
+                    }
+                }
+            }
+        } else {
+            List<ActivityManager.RunningTaskInfo> taskInfo = am.getRunningTasks(1);
+            ComponentName componentInfo = taskInfo.get(0).topActivity;
+            if (componentInfo.getPackageName().equals(context.getPackageName())) {
+                isInBackground = false;
+            }
+        }
+
+        return isInBackground;
     }
 
 }

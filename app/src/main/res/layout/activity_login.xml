@@ -28,9 +28,9 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:fontFamily="serif-monospace"
-                android:text="ANDON"
+                android:text="ANDON SYSTEM"
                 android:textColor="@color/red"
-                android:textSize="40sp"
+                android:textSize="36sp"
                 android:textStyle="bold"
                 android:layout_marginTop="16dp"/>
             <TextView
@@ -138,6 +138,7 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="end"
                     android:layout_marginTop="26dp"
+                    android:layout_marginBottom="16dp"
                     android:gravity="end"
                     android:orientation="horizontal"
                     android:visibility="visible">
@@ -163,6 +164,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="26dp"
+                    android:layout_marginBottom="16dp"
                     android:orientation="vertical"
                     android:visibility="gone">
 
@@ -226,6 +228,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="26dp"
+                    android:layout_marginBottom="16dp"
                     android:orientation="vertical"
                     android:visibility="gone">
 
@@ -273,14 +276,14 @@
 
                 </LinearLayout>
 
-                <TextView
+              <!--  <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom"
                     android:layout_marginTop="56dp"
                     android:gravity="center_horizontal"
                     android:text="@string/_2017_powered_by_v_v_technologies"
-                    android:textSize="12sp" />
+                    android:textSize="12sp" />-->
 
 
             </LinearLayout>

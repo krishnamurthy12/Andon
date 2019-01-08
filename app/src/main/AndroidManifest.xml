@@ -3,18 +3,19 @@
     package="com.vvt.andon">
 
     <uses-permission android:name="android.permission.USE_CREDENTIALS" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <uses-permission android:name="android.permission.CLEAR_APP_CACHE"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <application
         android:allowBackup="true"
@@ -26,20 +27,29 @@
 
         <service android:name="org.eclipse.paho.android.service.MqttService" />
 
-        <receiver android:name=".mqtt.MyWakefulReceiver"/>
+        <service android:name=".mqtt.MQTTService1"
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:excludeFromRecents="true"/>
 
         <receiver android:name=".mqtt.BootReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
-        </receiver>
 
-        <service android:name=".mqtt.MQTTservice"
+        </receiver>
+        <receiver android:name=".mqtt.CustomReceiver"
             android:enabled="true"
             android:exported="false">
-        </service>
+            <intent-filter>
+                <action android:name="uk.ac.shef.oak.ActivityRecognition.RestartSensor"/>
+            </intent-filter>
+        </receiver>
+
+
 
         <activity
             android:name=".activities.LoginActivity"
@@ -49,7 +59,7 @@
             android:windowSoftInputMode="stateHidden|adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
+                <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -59,6 +69,12 @@
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar"
             android:windowSoftInputMode="stateHidden|adjustResize"/>
+
+        <service android:name=".service.MyJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="true"
+        />
+
     </application>
 
 </manifest>

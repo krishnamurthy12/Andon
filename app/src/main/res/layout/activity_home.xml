@@ -10,7 +10,7 @@
     tools:context=".activities.HomeActivity">
 
     <android.support.v4.widget.SwipeRefreshLayout
-        android:layout_weight="6"
+        android:layout_weight="8"
         android:id="@+id/vS_swipe_refresh_layout"
         android:layout_width="wrap_content"
         android:layout_height="250dp">
@@ -25,6 +25,7 @@
             android:dividerHeight="1dp">
 
         </android.support.v7.widget.RecyclerView>
+
         <!--<LinearLayout
             android:layout_width="match_parent"
             android:layout_height="250dp"
@@ -63,6 +64,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="42dp"
                 android:layout_marginLeft="8dp"
+                android:layout_marginBottom="8dp"
                 android:layout_toLeftOf="@+id/vB_ah_accept"
                 android:background="@drawable/boarder">
                 <TextView
@@ -120,8 +122,9 @@
         android:id="@+id/vT_allemployees_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_weight="3.5">
+        android:orientation="vertical"
+        android:layout_marginTop="4dp"
+        android:layout_weight="1.5">
 
 
         <!--  <GridView
@@ -140,10 +143,37 @@
               android:numColumns="auto_fit"
               android:stretchMode="columnWidth"
               android:verticalSpacing="5dp" />-->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Online"
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:textColor="@color/green"/>
+            <ImageView
+                android:layout_width="12dp"
+                android:layout_height="20dp"
+                android:layout_marginLeft="6dp"
+                android:layout_marginRight="8dp"
+                android:layout_marginTop="2dp"
+                android:layout_gravity="center"
+                android:src="@drawable/online"
+                android:tint="@color/green"/>
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:background="@color/green"
+            />
         <android.support.v7.widget.RecyclerView
             android:id="@+id/vR_employee_list"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
 
@@ -195,14 +225,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:fontFamily="serif-monospace"
             android:gravity="center_horizontal"
-            android:textColor="@color/colorPrimary"
-            android:textSize="18sp"
-            android:paddingLeft="8dp"
+            android:textColor="@color/colorPrimaryDark"
+            android:textSize="20sp"
             android:textStyle="bold" />
 
-        <TextView
+       <!-- <TextView
             android:id="@+id/textView2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -210,7 +238,7 @@
             android:gravity="center_horizontal"
             android:paddingBottom="2dp"
             android:text="©2017 powred by V V Technologies"
-            android:textSize="10sp" />
+            android:textSize="10sp" />-->
 
     </FrameLayout>
 

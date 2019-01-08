@@ -6,6 +6,10 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+
+        <!--disable the multi-touch on your app by using this-->
+       <!-- <item name="android:splitMotionEvents">false</item>
+        <item name="android:windowEnableSplitTouch">false</item>-->
     </style>
 
     <style name="AppTheme.NoActionBar">
