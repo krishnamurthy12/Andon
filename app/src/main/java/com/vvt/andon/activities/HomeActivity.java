@@ -39,6 +39,7 @@ import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.AppCompatSpinner;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -49,6 +50,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -156,6 +159,10 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
 
         }
     };*/
+
+    String[] actionTypeArray = { "Select action type", "Containment action", "Preventive Action","Corrective action","Process loss"};
+    String selectedAction;
+    String selectionPosition;
 
     @Override
     protected void onStart() {
@@ -773,6 +780,25 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         final EditText mComment = dialogView.findViewById(R.id.vMLT_entered_text);
         TextView mYes = dialogView.findViewById(R.id.vT_cal_ok);
         TextView mNo = dialogView.findViewById(R.id.vT_cal_cancel);
+       /* AppCompatSpinner spinner=dialogView.findViewById(R.id.vS_action_type);
+
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,actionTypeArray);
+        arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+        spinner.setAdapter(arrayAdapter);
+
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedAction=actionTypeArray[position];
+                selectionPosition= String.valueOf(position);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });*/
 
         builder = new AlertDialog.Builder(HomeActivity.this);
         builder.setView(dialogView);
@@ -786,6 +812,8 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
             public void onClick(View v) {
 
                 //replaceAll(System.getProperty("line.separator"), "") is used to remove new line characters from entered text
+
+                // showToast("Selected position is =>"+selectionPosition);
                 String enteredMessage = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
                 if (TextUtils.isEmpty(enteredMessage) || enteredMessage.length() < 5) {
                     //Toast.makeText(context, "Closing action should be atleast of 5 characters", Toast.LENGTH_SHORT).show();
@@ -796,6 +824,27 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                     //callContainmentActionAPI(notificationID,enteredMessage,employeeID,employeeTeam);
 
                 }
+
+                /*String enteredMessage = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
+                if(selectedAction.equalsIgnoreCase("Select action type"))
+                {
+                    showSnackBar(HomeActivity.this,"Please select action type");
+                }
+                else {
+
+                   // showToast("Selected position is =>"+selectionPosition);
+                    if (TextUtils.isEmpty(enteredMessage) || enteredMessage.length() < 5) {
+                        //Toast.makeText(context, "Closing action should be atleast of 5 characters", Toast.LENGTH_SHORT).show();
+                        showToast("Closing action should be atleast of 5 characters");
+                    } else {
+                        alertDialog.dismiss();
+                        callgiveCAAPI(notificationID,enteredMessage,selectionPosition,employeeID,employeeTeam);
+                        //callContainmentActionAPI(notificationID,enteredMessage,employeeID,employeeTeam);
+
+                    }
+
+                }*/
+
                 hideKeyBoard();
                 IS_USER_INTERACTING=false;
 
@@ -1532,54 +1581,6 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         }
 
    }
-    private void pushUserDetailsToServer() {
-        String imeiNumber,ipaddress,ntUserId,userName;
-        SharedPreferences devicePreferences=getSharedPreferences("DEVICE_PREFERENCES",MODE_PRIVATE);
-        imeiNumber=devicePreferences.getString("IMEI_NUMBER",null);
-        ipaddress=devicePreferences.getString("IP_ADDRESS",null);
-        ntUserId=devicePreferences.getString("NT_USERID",null);
-        userName=devicePreferences.getString("USER_NAME",null);
-
-       CallPushUserDetailsToServerAPI obj=new CallPushUserDetailsToServerAPI(getApplicationContext(),imeiNumber,ipaddress,ntUserId,userName);
-       obj.execute();
-
-    }
-
-    private static class CallPushUserDetailsToServerAPI extends AsyncTask<Void,Void,Void>
-    {
-        String url="";
-        String imeiNumber,ipaddress,ntUserId,userName;
-        String ip;
-
-        CallPushUserDetailsToServerAPI(Context activity, String imeiNumber, String ipaddress, String ntUserId, String userName) {
-            this.imeiNumber = imeiNumber;
-            this.ipaddress = ipaddress;
-            this.ntUserId = ntUserId;
-            this.userName = userName;
-
-            SharedPreferences sharedPreferences=activity.getSharedPreferences(LoginActivity.IP_ADDRESS_PREFERENCE,MODE_PRIVATE);
-            ip=sharedPreferences.getString("IPADDRESS",null);
-
-            if(imeiNumber!=null && ipAddress!=null && ipaddress!=null && ntUserId!=null && userName!=null)
-            {
-
-                Log.d("ipaddresscheck", "ip in service=>"+ip);
-                url= "http://"+ip+":8080/AndonWebservices/rest/userinfo/"+userName+"/"+ntUserId+"/"+imeiNumber+"/"+ipaddress;
-                url = url.replaceAll(" ", "%20");
-                url = url.replaceAll(" ", "%20");
-            }
-        }
-
-
-        @Override
-        protected Void doInBackground(Void... voids) {
-            APIServiceHandler sh = new APIServiceHandler();
-            String jsonStr = sh.makeServiceCall(url, APIServiceHandler.GET);
-
-            return null;
-        }
-
-    }
 
     private void hideKeyBoard() {
         try {

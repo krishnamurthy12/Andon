@@ -12,9 +12,11 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -85,13 +87,14 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
 
     int PERMISSION_ALL = 1;
 
-    String[] PERMISSIONS = { Manifest.permission.ACCESS_FINE_LOCATION};
+    String[] PERMISSIONS = { Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.WRITE_EXTERNAL_STORAGE};
 
     @Override
     protected void onStart() {
         super.onStart();
 
-        SharedPreferences sharedPreferences=getSharedPreferences(LoginActivity.IP_ADDRESS_PREFERENCE,MODE_PRIVATE);
+        checkPowerOptimizationPermission();
+
         ipAddress=AndonUtils.getIPAddress(this);
       // ipAddress=sharedPreferences.getString("IPADDRESS",null);
         if(ipAddress==null)
@@ -100,12 +103,26 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
         }
         loadIMEI();
 
+        //AndonUtils.saveIPtoExternalDirectory(this,"123456789");
+
+        //String savedIP=AndonUtils.getIPFromExternalDirectory(this);
+        //Log.d("savedip",savedIP);
        // getBattery_percentage();
        // this.registerReceiver(this.mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         DEVICE_IPADDRESS=getLocalIpAddress();
 
         if(!hasPermissions(this, PERMISSIONS)){
-            ActivityCompat.requestPermissions(this, PERMISSIONS, PERMISSION_ALL);
+            // Permission is not granted
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                showToast("storage permission has not granted");
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+            } else {
+                ActivityCompat.requestPermissions(this, PERMISSIONS, PERMISSION_ALL);
+            }
         }
 
         NotificationManager notif = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -226,6 +243,24 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
             }
         });
 
+    }
+
+    @SuppressLint("BatteryLife")
+    private void checkPowerOptimizationPermission() {
+
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Intent intent = new Intent();
+            String packageName = getPackageName();
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + packageName));
+                startActivity(intent);
+            }
+            else {
+                //Permissions granted do whatever you want to do
+            }
+        }
     }
 
     private void CheckLogInStatus() {

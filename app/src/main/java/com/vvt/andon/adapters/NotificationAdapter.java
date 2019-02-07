@@ -1,10 +1,14 @@
 package com.vvt.andon.adapters;
 
+import android.animation.ArgbEvaluator;
+import android.animation.ObjectAnimator;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
 import android.util.Log;
@@ -15,6 +19,8 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -24,6 +30,9 @@ import com.vvt.andon.activities.HomeActivity;
 import com.vvt.andon.api_responses.allnotifications.NotificationList;
 import com.vvt.andon.utils.APIServiceHandler;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 import static android.content.Context.LAYOUT_INFLATER_SERVICE;
@@ -41,7 +50,6 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         this.context = context;
         this.mList = mList;
         notificationInterface= (NotificationInterface) context;
-
     }
 
     @Override
@@ -62,6 +70,41 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         holder.mAcceptedby.setText(mList.get(position).getAcceptedBy());
         holder.mComplaintStatus.setText(mList.get(position).getNotificationStatus());
         holder.mDateTime.setText(mList.get(position).getCreatedDate());
+
+      /*  try {
+            Date createdTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSS").parse(mList.get(position).getCreatedDate());
+            Date now = new Date();
+
+            long diff =  now.getTime() - createdTime.getTime();
+            int numOfDays = (int) (diff / (1000 * 60 * 60 * 24));
+            int hours = (int) (diff / (1000 * 60 * 60));
+            int minutes = (int) (diff / (1000 * 60));
+            int seconds = (int) (diff / (1000));
+
+            if(numOfDays>=1 || hours>=1 || minutes>=20)
+            {
+
+               *//* ObjectAnimator anim = ObjectAnimator.ofInt( holder.mRootlayout, "backgroundColor", Color.WHITE,context.getResources().getColor(R.color.highlight),
+                        Color.WHITE);
+                anim.setDuration(2000);
+                anim.setEvaluator(new ArgbEvaluator());
+                anim.setRepeatMode(Animation.REVERSE);
+                anim.setRepeatCount(Animation.INFINITE);
+                anim.start();*//*
+                //holder.mRootlayout.setBackgroundColor(context.getResources().getColor(R.color.highlight));
+
+                holder.mRootlayout.setBackgroundResource(R.drawable.card_border);
+                Log.d("dateformatting","\ndays=>"+numOfDays+"\n Hours=>"+hours+"\nminutes=>"+minutes+"\nseconds=>"+seconds);
+            }
+
+
+        } catch (ParseException e) {
+            Log.d("dateformatting",e.getMessage());
+            e.printStackTrace();
+        }*/
+
+
+
 
         if (mList.get(position).getImageLink() != null) {
             if (mList.get(position).getImageLink().endsWith(".png")) {
@@ -113,11 +156,14 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
     public class MyHolder extends RecyclerView.ViewHolder {
 
+        LinearLayout mRootlayout;
         public ImageView mImage;
         public TextView mErrorID, mErrorMessage, mLine,mStation, mTeam, mAcceptedby, mComplaintStatus, mDateTime;
 
         public MyHolder(View itemView) {
             super(itemView);
+
+            mRootlayout=itemView.findViewById(R.id.vC_nsr_root_layout);
 
             mImage = itemView.findViewById(R.id.vI_working_image);
 
@@ -183,6 +229,10 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
         }
 
+
+        private void manageBlinkEffect() {
+
+        }
     }
 
     public interface NotificationInterface

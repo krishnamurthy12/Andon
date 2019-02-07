@@ -12,4 +12,6 @@
     <color name="red">#F44336</color>
     <color name="paleblue">#9BC1BC</color>
 
+    <color name="highlight">#ff0000</color>
+
 </resources>

@@ -8,8 +8,10 @@
     android:layout_marginRight="6dp"
     app:cardCornerRadius="4dp"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+   >
     <LinearLayout
+        android:id="@+id/vC_nsr_root_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
@@ -27,19 +29,19 @@
                 android:textStyle="bold"
                 android:textSize="16sp"
                 android:gravity="center"
-                android:textColor="@color/colorAccent"
+                android:textColor="@color/colorPrimaryDark"
                 android:layout_weight="1"/>
             <View
                 android:layout_width="2dp"
                 android:layout_height="match_parent"
-                android:background="@color/colorAccent"/>
+                android:background="@color/colorPrimaryDark"/>
             <TextView
                 android:id="@+id/vT_error_message"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:text="bgadbvnvndkjbkjbddddjk"
-                android:textColor="@color/colorAccent"
+                android:textColor="@color/colorPrimaryDark"
                 android:textStyle="bold"
                 android:textSize="16sp"
                 android:layout_weight="3"/>
@@ -157,6 +159,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="2dp"
+            android:layout_marginBottom="4dp"
             android:weightSum="5">
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -178,7 +181,6 @@
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
                     android:text="krishnamurthy"
-                    android:textColor="@color/red"
                     android:gravity="center"
                     />
 
@@ -207,7 +209,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="MOE comment pending"
-                    android:textColor="@color/red"
                     android:textSize="12sp"
                     android:gravity="center"
                     />
@@ -243,10 +244,10 @@
             </LinearLayout>
 
         </LinearLayout>
-        <View
+       <!-- <View
             android:layout_width="match_parent"
             android:layout_height="3dp"
-            android:background="@color/colorAccent"/>
+            android:background="@color/colorPrimary"/>-->
     </LinearLayout>
 
 
