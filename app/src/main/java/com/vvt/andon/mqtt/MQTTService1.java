@@ -14,6 +14,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.graphics.Color;
+import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -21,9 +23,12 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+
+import com.vvt.andon.R;
 import com.vvt.andon.events.NotificationEvent;
 
 import com.vvt.andon.utils.APIServiceHandler;
@@ -82,13 +87,13 @@ public class MQTTService1 extends Service {
                         hasChanged = true;
                         hasMmobile = info.isConnected();
                     }
-                    Log.d(TAG, info.getTypeName() + " is " + info.isConnected());
+                    //Log.d(TAG, info.getTypeName() + " is " + info.isConnected());
                 } else if (info.getTypeName().equalsIgnoreCase("WIFI")) {
                     if ((info.isConnected() != hasWifi)) {
                         hasChanged = true;
                         hasWifi = info.isConnected();
                     }
-                    Log.d(TAG, info.getTypeName() + " is " + info.isConnected());
+                    //Log.d(TAG, info.getTypeName() + " is " + info.isConnected());
                 }
             }
 
@@ -98,7 +103,7 @@ public class MQTTService1 extends Service {
                 doConnect();
                 //startTimer();
             } else if (!hasConnectivity && mqttClient != null && mqttClient.isConnected()) {
-                Log.d(TAG, "doDisconnect()");
+                //Log.d(TAG, "doDisconnect()");
                 try {
                     token = mqttClient.disconnect();
                     token.waitForCompletion(1000);
@@ -114,23 +119,27 @@ public class MQTTService1 extends Service {
             return MQTTService1.this;
         }
     }*/
+   int lastStartedID=0;
 
     @Override
     public void onCreate() {
-        Log.d("flowcheck","inside onCreate() of MQTTService1");
+       // Log.d("flowcheck","inside onCreate() of MQTTService1");
 
         int NOTIFICATION_ID = (int) (System.currentTimeMillis()%10000);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
+           startMyOwnForeground();
+
+        }
+        else {
             String CHANNEL_ID = "my_channel_for_andon";
 
             Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                     .setContentTitle("Andon")
                     .setContentText("Running").build();
 
-            startForeground(2, notification);
-
+            startForeground(1, notification);
         }
         mConnMan = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
 
@@ -146,17 +155,55 @@ public class MQTTService1 extends Service {
         registerReceiver(mqttBroadcastReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));*/
 
     }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void startMyOwnForeground(){
+        String NOTIFICATION_CHANNEL_ID = "com.vvt.andon";
+        String channelName = "Andon Background Service";
+        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_HIGH);
+        chan.setLightColor(Color.BLUE);
+        chan.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        assert manager != null;
+        manager.createNotificationChannel(chan);
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
+        Notification notification = notificationBuilder.setOngoing(true)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle("App is running in background")
+                .setPriority(NotificationManager.IMPORTANCE_HIGH)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .build();
+        startForeground(2, notification);
+    }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         /*Creating seperate thread for running MQTT operations*/
+
+        try {
+            if(lastStartedID!=0)
+            {
+
+                Log.d("adghjj","inside onstart command stop self method");
+                stopSelf(lastStartedID);
+            }
+        }catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        lastStartedID=startId;
+
+        Log.d("adghjj","inside onstart command restarting");
+
         new Thread(new MyThread(startId)).start();
-        Log.d("flowcheck","inside onStartCommand() of MQTTService1");
+       // Log.d("flowcheck","inside onStartCommand() of MQTTService1");
 
         //Toast.makeText(this, "Service started", Toast.LENGTH_SHORT).show();
 
-        Log.v(TAG, "onStartCommand()");
+       // Log.v(TAG, "onStartCommand()");
 
-        Log.v(TAG, "subscriptiontopic=>"+SUBSCRIPTION_TOPIC+" emp id=>"+employeeID);
+       // Log.v(TAG, "subscriptiontopic=>"+SUBSCRIPTION_TOPIC+" emp id=>"+employeeID);
         //setClientID();
 
         return START_STICKY;
@@ -169,10 +216,13 @@ public class MQTTService1 extends Service {
 
          MyThread(int service_id) {
             this.service_id = service_id;
+            Log.d("adghjj","inside back ground thread constructor");
         }
 
         @Override
         public void run() {
+
+            Log.d("adghjj","inside back ground thread run  method");
 
             SharedPreferences preferences=getSharedPreferences("LOGIN_SHARED_PREFERENCE",MODE_PRIVATE);
             SUBSCRIPTION_TOPIC=preferences.getString("EMPLOYEE_DEPARTMENT",null);
@@ -210,10 +260,13 @@ public class MQTTService1 extends Service {
                 mTimerHandler.post(new Runnable() {
                     public void run() {
                         //TODO
-                        Log.d(TAG, "inside startTimer run method");
+                       // Log.d(TAG, "inside startTimer run method");
+                        Log.d("adghjj","inside startTimer run method");
                         MQTTService1 mqttService1 = new MQTTService1();
                         if (!isMyServiceRunning(mqttService1.getClass())) {
-                            Log.d(TAG, "inside service not running method");
+                           // Log.d(TAG, "inside service not running method");
+
+                            Log.d("adghjj","inside service not running method");
 
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                 Intent serviceIntent = new Intent(MQTTService1.this, MQTTService1.class);
@@ -226,13 +279,16 @@ public class MQTTService1 extends Service {
                             }
                             //startService(new Intent(MQTTService1.this, MQTTService1.class));
                         }
+                        else {
+                            Log.d("adghjj","inside service running... method");
+                        }
                         //doConnect();
                     }
                 });
             }
         };
 
-        mTimer1.schedule(mTt1, 1, 20*1000);
+        mTimer1.schedule(mTt1, 1, 60*1000); // 1 minute delay
     }
 /* to check whether the service is currently running or not */
     private boolean isMyServiceRunning(Class<?> serviceClass) {
@@ -240,17 +296,17 @@ public class MQTTService1 extends Service {
         if (manager != null) {
             for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
                 if (serviceClass.getName().equals(service.service.getClassName())) {
-                    Log.i ("isMyServiceRunning?", true+"");
+                   // Log.i ("isMyServiceRunning?", true+"");
                     return true;
                 }
             }
         }
-        Log.i ("isMyServiceRunning?", false+"");
+       // Log.i ("isMyServiceRunning?", false+"");
         return false;
     }
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
-        Log.d(TAG, "onConfigurationChanged()");
+      //  Log.d(TAG, "onConfigurationChanged()");
         android.os.Debug.waitForDebugger();
         super.onConfigurationChanged(newConfig);
 
@@ -281,7 +337,7 @@ public class MQTTService1 extends Service {
     /*Connection process  to MQTT*/
     private void doConnect(){
 
-        Log.d("flowcheck","inside doConnect() of MQTTService1");
+       // Log.d("flowcheck","inside doConnect() of MQTTService1");
         String deviceId = MqttAsyncClient.generateClientId();
 
         if(deviceId !=null)
@@ -292,7 +348,7 @@ public class MQTTService1 extends Service {
             }
         }
 
-        Log.d(TAG, "doConnect()");
+       // Log.d(TAG, "doConnect()");
         IMqttToken token;
         MqttConnectOptions options = new MqttConnectOptions();
         options.setCleanSession(true);
@@ -311,7 +367,7 @@ public class MQTTService1 extends Service {
         employeeID= preferences.getString("EMPLOYEE_ID",null);
 
 
-        Log.d(TAG, "URI=> "+uri);
+       // Log.d(TAG, "URI=> "+uri);
         try {
             mqttClient = new MqttAsyncClient(uri, deviceId, new MemoryPersistence());
             token = mqttClient.connect();
@@ -319,7 +375,7 @@ public class MQTTService1 extends Service {
             mqttClient.setCallback(new MqttEventCallback());
             token = mqttClient.subscribe(SUBSCRIPTION_TOPIC, 0);
             token.waitForCompletion(5000);
-            Log.d(TAG, "token.isComplete() ?=> "+token.isComplete()+" Subscription response=>"+token.getResponse()+" to SUBSCRIPTION_TOPIC=>"+SUBSCRIPTION_TOPIC);
+           // Log.d(TAG, "token.isComplete() ?=> "+token.isComplete()+" Subscription response=>"+token.getResponse()+" to SUBSCRIPTION_TOPIC=>"+SUBSCRIPTION_TOPIC);
         } catch (MqttSecurityException e) {
             e.printStackTrace();
         } catch (MqttException e) {
@@ -360,14 +416,14 @@ public class MQTTService1 extends Service {
         @Override
         public void connectionLost(Throwable arg0) {
 
-            Log.i(TAG, "Connection Lost with " + arg0.getMessage());
+           // Log.i(TAG, "Connection Lost with " + arg0.getMessage());
             doConnect();
 
         }
 
         @Override
         public void deliveryComplete(IMqttDeliveryToken arg0) {
-            Log.i(TAG, "Deliverycompleted" + arg0.toString());
+           // Log.i(TAG, "Deliverycompleted" + arg0.toString());
         }
 
         @Override
@@ -376,6 +432,7 @@ public class MQTTService1 extends Service {
             String body = new String(msg.getPayload());
             Log.i(TAG, "Message arrived from topic" + topic);
             Log.i(TAG, "Message arrived is" + body);
+            final AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
 
             SharedPreferences preferences=getSharedPreferences("LOGIN_SHARED_PREFERENCE",MODE_PRIVATE);
 
@@ -396,34 +453,63 @@ public class MQTTService1 extends Service {
 
                 if (body.contains("#")) {
                     //refresh case
+
+                    //To mute ringing
+                    if (manager != null) {
+                        manager.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
+                    }
+
                     showNotificationToUser(MQTTService1.this);
-                    EventBus.getDefault().post(new NotificationEvent("#"));
+                    EventBus.getDefault().post(new NotificationEvent("#",topic));
+
+                    //To bring back to ringing mode
+                    if (manager != null) {
+                        manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+                    }
+
 
                 } else if (body.startsWith("Alert from")) {
                     //Initial case
-                    showNotificationToUser(MQTTService1.this,body);
-                    EventBus.getDefault().post(new NotificationEvent(body));
+
+                    if (manager != null) {
+                        int streamMaxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_RING);
+                        //Toast.makeText(this, Integer.toString(streamMaxVolume), Toast.LENGTH_LONG).show(); //I got 7
+                        manager.setStreamVolume(AudioManager.STREAM_RING, streamMaxVolume, AudioManager.FLAG_ALLOW_RINGER_MODES|AudioManager.FLAG_PLAY_SOUND);
+                    }
+
+
+                    //To bring back to ringing mode
+                    if (manager != null) {
+                        manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+                    }
+                    showNotificationToUser(MQTTService1.this,body,topic);
+                    EventBus.getDefault().post(new NotificationEvent(body,topic));
                     pushUserDetailsToServer();
 
                 } else if (body.startsWith(employeeID)) {
                     //Acknowledge case
                     showNotificationToUser(MQTTService1.this);
-                    EventBus.getDefault().post(new NotificationEvent(employeeID));
+                    EventBus.getDefault().post(new NotificationEvent(employeeID,topic));
 
                 } else if (body.startsWith("$" + employeeID)) {
                     //check list case
                     showNotificationToUser(MQTTService1.this);
-                   EventBus.getDefault().post(new NotificationEvent("$" + employeeID));
+                    EventBus.getDefault().post(new NotificationEvent("$" + employeeID,topic));
 
                 } else if (body.contains("MOE")) {
-
                     //This will occur when CA is Done
                     //push notification only to MOE Team
-                    EventBus.getDefault().post(new NotificationEvent("MOE"));
+                    EventBus.getDefault().post(new NotificationEvent("MOE",topic));
                     showNotificationToMOE(MQTTService1.this,"Containment Action done");
                     //showNotificationToUser("Containment Action done");
                 }
             }
+
+            //To bring back to ringing mode
+            if (manager != null) {
+                manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+            }
+
 
         }
     }
@@ -458,7 +544,10 @@ public class MQTTService1 extends Service {
     private void pushUserDetailsToServer() {
         SharedPreferences sharedPreferences=getSharedPreferences("DEVICE_PREFERENCES",MODE_PRIVATE);
         String PUSH_URL=sharedPreferences.getString("PUSH_URL",null);
-        Log.d("pushurl",PUSH_URL);
+        PUSH_URL=PUSH_URL.replaceAll("\\s","%20");
+        PUSH_URL=PUSH_URL.replaceAll("\\s","");
+        PUSH_URL=PUSH_URL.replaceAll("\\s","+");
+        //Log.d("pushurl",PUSH_URL);
 
         new CallPushUserDetailsToServerAPI().execute(PUSH_URL);
 
@@ -504,7 +593,7 @@ public class MQTTService1 extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        Log.i(TAG, "onBind called");
+      //  Log.i(TAG, "onBind called");
         return null;
     }
 
@@ -513,12 +602,13 @@ public class MQTTService1 extends Service {
         super.onDestroy();
         stopTimer();
 
-        Log.d("flowcheck","inside onDestroy() of MQTTService1");
+       // Log.d("flowcheck","inside onDestroy() of MQTTService1");
 
         EventBus.getDefault().unregister(this);
 
         unregisterReceiver(mqttBroadcastReceiver);
-        Log.i(TAG, "ondestroy!");
+       // Log.i(TAG, "ondestroy!");
+
         Intent broadcastIntent = new Intent("uk.ac.shef.oak.ActivityRecognition.RestartSensor");
         sendBroadcast(broadcastIntent);
     }
@@ -531,7 +621,7 @@ public class MQTTService1 extends Service {
         sendBroadcast(broadcastIntent);
         //Toast.makeText(getApplicationContext(), "Task removed", Toast.LENGTH_SHORT).show();
 
-        Log.i(TAG, "TaskRemoved()");
+       // Log.i(TAG, "TaskRemoved()");
 
         super.onTaskRemoved(rootIntent);
 
@@ -540,7 +630,7 @@ public class MQTTService1 extends Service {
 
     public static void unsubscribeMQTT(){
 
-        Log.d("flowcheck","inside unsubscribeMQTT() of MQTTService1");
+       // Log.d("flowcheck","inside unsubscribeMQTT() of MQTTService1");
 
         IMqttToken token;
 
@@ -548,7 +638,7 @@ public class MQTTService1 extends Service {
             token=mqttClient.unsubscribe(SUBSCRIPTION_TOPIC);
             token.waitForCompletion(2000);
 
-            Log.d(TAG,"unscribe success ?=>"+token.isComplete()+" unscribe status"+token.getResponse());
+           // Log.d(TAG,"unscribe success ?=>"+token.isComplete()+" unscribe status"+token.getResponse());
         } catch (MqttException e) {
             e.printStackTrace();
         }
@@ -558,7 +648,7 @@ public class MQTTService1 extends Service {
     @Subscribe(threadMode = ThreadMode.ASYNC)
     public void onMessageEvent(NotificationEvent event) {
 
-        Log.d("flowcheck","inside onMessageEvent()(Event bus) of MQTTService1");
+       // Log.d("flowcheck","inside onMessageEvent()(Event bus) of MQTTService1");
         /* Do something */
         //Toast.makeText(this, event.getMessage(), Toast.LENGTH_SHORT).show();
     };

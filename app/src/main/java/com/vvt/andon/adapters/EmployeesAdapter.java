@@ -1,6 +1,7 @@
 package com.vvt.andon.adapters;
 
 import android.content.Context;
+import android.os.AsyncTask;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -45,11 +46,12 @@ public class EmployeesAdapter extends RecyclerView.Adapter<EmployeesAdapter.MyHo
         if(mList.get(position).getImageUrl()!=null)
         {
 
-            List<NotificationList> nList=new ArrayList<>();
             if(mList.get(position).getImageUrl().contains(".png")) {
                 String imageUrl="http://"+ HomeActivity.ipAddress+":8080/AndonWebservices/";
+                String image=imageUrl+mList.get(position).getImageUrl().trim();
+
                 Picasso.get()
-                        .load(imageUrl+mList.get(position).getImageUrl())
+                        .load(image)
                         //.placeholder(R.drawable.background_drawable)
                         //.error(R.drawable.user)
                         //.resize(150,150)
@@ -70,7 +72,6 @@ public class EmployeesAdapter extends RecyclerView.Adapter<EmployeesAdapter.MyHo
         setAnimation(holder.itemView, position);
 
     }
-
 
     /**
      * Here is the key method to apply the animation

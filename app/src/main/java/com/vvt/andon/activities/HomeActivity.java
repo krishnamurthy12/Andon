@@ -18,19 +18,24 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraManager;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.StrictMode;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.support.annotation.RequiresApi;
+import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
@@ -49,12 +54,18 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -98,6 +109,11 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     SwipeRefreshLayout mSwipeRefreshLayout;
     LinearLayout mAcceptErrorLayout;
     Button mAccept,mLogOut;
+
+    FloatingActionButton mFlash;
+    boolean isFlashEnabled=false;
+    Animation zoomin,zoomout;
+
     LinearLayoutManager layoutManager;
     GridLayoutManager gridLayoutManager;
     NotificationAdapter notificationAdapter;
@@ -160,98 +176,76 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         }
     };*/
 
-    String[] actionTypeArray = { "Select action type", "Containment action", "Preventive Action","Corrective action","Process loss"};
+    String[] actionTypeArray = {"Containment action", "Preventive Action","Corrective action"};
     String selectedAction;
     String selectionPosition;
+    String actionType="machine";;
 
     @Override
     protected void onStart() {
         super.onStart();
-        Log.d("flowcheck","inside onStart()");
+       // Log.d("flowcheck","inside onStart()");
+        /*To deletes the previous downloaded apk file */
 
-        EventBus.getDefault().register(this);
-
-       /* NotificationManager notif = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (notif != null) {
-            notif.cancelAll();
-        }*/
+        trimCache(this);
 
         callAllNotificationsAPI();
         callAllAvailableUsersAPI();
-        startTimer();
+        //startTimer();
 
-       /* if (android.os.Build.VERSION.SDK_INT > 9) {
-
-            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-            StrictMode.setThreadPolicy(policy);
-        }*/
-
-       /* if (Build.VERSION.SDK_INT >= 23) {
-            if (!Settings.canDrawOverlays(HomeActivity.this)) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:" + getPackageName()));
-                startActivityForResult(intent, 1234);
-            }
-        } *//*else {
-            Intent intent = new Intent(HomeActivity.this, Service.class);
-            startService(intent);
-        }*//*
-
-
-        *//*To lock the notification bar from dragging*//*
-        WindowManager manager = ((WindowManager) getApplicationContext().getSystemService(Context.WINDOW_SERVICE));
-        WindowManager.LayoutParams localLayoutParams = new WindowManager.LayoutParams();
-        localLayoutParams.type = WindowManager.LayoutParams.TYPE_SYSTEM_ERROR;
-        localLayoutParams.gravity = Gravity.TOP;
-        localLayoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-// this is to enable the notification to recieve touch events
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
-// Draws over status bar
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN;
-        localLayoutParams.width = WindowManager.LayoutParams.MATCH_PARENT;
-        localLayoutParams.height = (int) (50 * getResources().getDisplayMetrics().scaledDensity);
-        localLayoutParams.format = PixelFormat.TRANSPARENT;
-        customViewGroup view = new customViewGroup(this);
-        manager.addView(view, localLayoutParams);*/
-
-    }
-
-
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        Log.d("flowcheck","inside onResume()");
 
         MQTTService1 mqttService1=new MQTTService1();
-
         if (!isMyServiceRunning(mqttService1.getClass())) {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Log.d("versionchecck","Build.VERSION_CODES>=M");
+                //  Log.d("versionchecck","Build.VERSION_CODES>=M");
                 Intent serviceIntent = new Intent(this, MQTTService1.class);
                 ContextCompat.startForegroundService(this, serviceIntent );
             }
             else {
-                Log.d("versionchecck","Build.VERSION_CODES<M");
+                // Log.d("versionchecck","Build.VERSION_CODES<M");
                 startService(new Intent(this,MQTTService1.class));
 
             }
             // startService(new Intent(this,MQTTService1.class));
         }
+
     }
 
     @Override
-    protected void onPostResume() {
-        super.onPostResume();
-        Log.d("flowcheck","inside onPostResume()");
+    protected void onResume() {
+        super.onResume();
+       // Log.d("flowcheck","inside onResume()");
+
+        if(alertDialog!=null)
+        {
+            if(alertDialog.isShowing())
+            {
+                alertDialog.dismiss();
+            }
+        }
+
+        if(progressDialog!=null)
+        {
+            if(progressDialog.isShowing())
+            {
+                progressDialog.dismiss();
+            }
+        }
+
+        if (mSwipeRefreshLayout != null) {
+            if (mSwipeRefreshLayout.isRefreshing()) {
+                mSwipeRefreshLayout.setRefreshing(false);
+            }
+
+        }
     }
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d("flowcheck","inside onCreate()");
+       // Log.d("flowcheck","inside onCreate()");
 
         /*to preventing from taking screen shots*/
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,
@@ -261,9 +255,25 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         getLogInSharedPreferenceData();
 
        // jobScheduler= (JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE);
+
+        StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+                .permitAll()
+                .detectDiskReads()
+                .detectDiskWrites()
+                .detectAll()
+                .detectNetwork()   // or .detectAll() for all detectable problems
+                .penaltyLog()
+                .build());
+
+        StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
+                .detectLeakedSqlLiteObjects()
+                .detectLeakedClosableObjects()
+                .penaltyLog()
+                .penaltyDeath()
+                .build());
+
         constructJob();
         initializeViews();
-
         this.refreshHandler = new Handler(Looper.getMainLooper());
 
        /* registerReceiver(mybroadcast, new IntentFilter(Intent.ACTION_SCREEN_ON));
@@ -280,7 +290,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
        persistableBundle.putString("KEY","value");*/
 
        // builder.setPeriodic(15*60 * 1000); /* Repeat job for every 15 minutes*/
-        builder.setPeriodic(60 * 1000); /* Repeat job for every 1 minutes*/
+        builder.setPeriodic(5*60 * 1000); /* Repeat job for every 5 minutes*/
 
         builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED); // WIFI or ethernet network
         builder.setPersisted(true);
@@ -320,15 +330,15 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                 mTimerHandler.post(new Runnable() {
                     public void run() {
                         //TODO
-                        Log.d(TAG, "inside startTimer run method");
+                       // Log.d(TAG, "inside startTimer run method");
                         MQTTService1 mqttService1 = new MQTTService1();
                         if(!isAppIsInBackground(HomeActivity.this))
                         {
                             if(!IS_USER_INTERACTING)
                             {
-                                Log.d(TAG, "inside inner if block");
+                                //Log.d(TAG, "inside inner if block");
                                 if (!isMyServiceRunning(mqttService1.getClass())) {
-                                    Log.d(TAG,"MyService not Running");
+                                  //  Log.d(TAG,"MyService not Running");
 
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                         Intent serviceIntent = new Intent(HomeActivity.this, MQTTService1.class);
@@ -341,24 +351,19 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                                     // startService(new Intent(this,MQTTService1.class));
                                 }
                                 else {
-                                    Log.d(TAG,"MyService Running");
+                                    //Log.d(TAG,"MyService Running");
                                 }
-                                /*if (!isMyServiceRunning(mqttService1.getClass())) {
-
-                                    //startService(new Intent(MQTTService1.this, MQTTService1.class));
-                                }
-*/
                             }
 
                         }
 
                         //doConnect();
-                    }
+                                            }
                 });
             }
         };
 
-        mTimer1.schedule(mTt1, 1, 60*1000); //1 minutes
+        mTimer1.schedule(mTt1, 1, 1*60*1000); //5 minutes
     }
 
     private void stopTimer(){
@@ -389,9 +394,30 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void initializeViews() {
+
+        EventBus.getDefault().register(this);
+
+        try {
+          //  File toDelete = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath(), "ANDON.apk");
+           new DeleteRecursive().execute();
+
+        }catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         notificationList=new ArrayList<>();
         employeeStatusList=new ArrayList<>();
+
+
+        mFlash=findViewById(R.id.fab_flash);
+        mFlash.setOnClickListener(this);
+
+        zoomin = AnimationUtils.loadAnimation(this, R.anim.zoom_in);
+        zoomout = AnimationUtils.loadAnimation(this, R.anim.zoom_out);
+       /* mFlash.setAnimation(zoomin);
+        mFlash.setAnimation(zoomout);*/
 
         mEmployeeName=findViewById(R.id.vT_ah_employee_name);
         mEmployeeName.setText(employeeName);
@@ -444,6 +470,10 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         } else if (employeeDepartment.contains("FCM")) {
             mAcceptErrorLayout.setVisibility(View.VISIBLE);
         }
+        else {
+            mAcceptErrorLayout.setVisibility(View.GONE);
+        }
+
 
     }
 
@@ -484,6 +514,16 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                 hideKeyBoard();
                 mErrorId.setText("");
                 break;
+
+            case R.id.fab_flash:
+                if(isFlashEnabled)
+                {
+                    turnOFFFlash();
+                }
+                else {
+                    turnONFlash();
+                }
+                break;
         }
 
     }
@@ -496,7 +536,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
 
         mErrorId.setText(errorId);
 
-        Log.d("interfaceflowcheck","accept error with error id=>"+errorId);
+       // Log.d("interfaceflowcheck","accept error with error id=>"+errorId);
 
     }
 
@@ -504,7 +544,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void giveCA(final String errorId, final String team) {
 
-        Log.d("interfaceflowcheck","giveCA with error id=>"+errorId+""+team);
+       // Log.d("interfaceflowcheck","giveCA with error id=>"+errorId+""+team);
         showActionPopup(errorId,employeeID,team);
 
     }
@@ -513,7 +553,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void giveMOEComment(String errorId, String team) {
 
-        Log.d("interfaceflowcheck","giveCA with error id=>"+errorId+""+team);
+       // Log.d("interfaceflowcheck","giveCA with error id=>"+errorId+""+team);
         callgetCaGivenAPI(errorId,team);
 
     }
@@ -521,7 +561,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     /*Interface method receivad from Adapter*/
     @Override
     public void checklist(String errorId) {
-        Log.d("interfaceflowcheck","checklist with error id=>"+errorId);
+       // Log.d("interfaceflowcheck","checklist with error id=>"+errorId);
         showCheckListPopup(errorId,employeeID);
 
     }
@@ -640,8 +680,9 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void callgiveCAAPI(String notificationId,String enteredMessage,String employeeId,String team)
+    private void callgiveCAAPI(String notificationId,String enteredMessage,String selectionPosition,String employeeId,String team)
     {
+       // Log.d("entereddetails","entered msg=>"+enteredMessage+" selected pos=>"+selectionPosition);
         if(AndonUtils.isConnectedToInternet(this))
         {
             progressDialog=new ProgressDialog(HomeActivity.this);
@@ -650,7 +691,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
             progressDialog.show();
 
             WebServices<InteractionResponse> webServices = new WebServices<InteractionResponse>(this);
-            webServices.giveCA(BASE_URL, WebServices.ApiType.giveCA,notificationId,enteredMessage,employeeId,team);
+            webServices.giveCA(BASE_URL, WebServices.ApiType.giveCA,notificationId,enteredMessage,selectionPosition,employeeId,team);
 
         }
         else {
@@ -711,9 +752,6 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
             showToast(getResources().getString(R.string.err_msg_nointernet));
         }
     }
-
-
-
 
     private void showMOEpoPup(String resolvedMessage, final String notificationID,final String employeeTeam) {
 
@@ -780,7 +818,33 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         final EditText mComment = dialogView.findViewById(R.id.vMLT_entered_text);
         TextView mYes = dialogView.findViewById(R.id.vT_cal_ok);
         TextView mNo = dialogView.findViewById(R.id.vT_cal_cancel);
-       /* AppCompatSpinner spinner=dialogView.findViewById(R.id.vS_action_type);
+        final AppCompatSpinner spinner=dialogView.findViewById(R.id.vS_action_type);
+
+        final RadioGroup mRadioGroup=(RadioGroup)dialogView.findViewById(R.id.vR_radiogroup);
+
+        mRadioGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(RadioGroup group, int checkedId) {
+
+                switch (checkedId)
+                {
+                    case R.id.vRB_machine:
+                        spinner.setVisibility(View.VISIBLE);
+                        actionType="machine";
+                        break;
+                    case R.id.vRB_process:
+                        spinner.setVisibility(View.VISIBLE);
+                        actionType="process";
+                        break;
+                    case R.id.vRB_organization:
+                        spinner.setVisibility(View.GONE);
+                        selectionPosition= String.valueOf(7);
+                        actionType="organization";
+                        break;
+                }
+
+            }
+        });
 
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,actionTypeArray);
         arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -792,13 +856,26 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedAction=actionTypeArray[position];
                 selectionPosition= String.valueOf(position);
+                if(actionType.equals("machine"))
+                {
+                    selectionPosition= String.valueOf(position+1);
+                }
+                else if(actionType.equalsIgnoreCase("process"))
+                {
+                    selectionPosition= String.valueOf(position+4);
+                }
+                else
+                {
+                    selectionPosition= String.valueOf(7);
+
+                }
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
 
             }
-        });*/
+        });
 
         builder = new AlertDialog.Builder(HomeActivity.this);
         builder.setView(dialogView);
@@ -814,7 +891,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                 //replaceAll(System.getProperty("line.separator"), "") is used to remove new line characters from entered text
 
                 // showToast("Selected position is =>"+selectionPosition);
-                String enteredMessage = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
+               /* String enteredMessage = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
                 if (TextUtils.isEmpty(enteredMessage) || enteredMessage.length() < 5) {
                     //Toast.makeText(context, "Closing action should be atleast of 5 characters", Toast.LENGTH_SHORT).show();
                     showToast("Closing action should be atleast of 5 characters");
@@ -823,27 +900,22 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                     callgiveCAAPI(notificationID,enteredMessage,employeeID,employeeTeam);
                     //callContainmentActionAPI(notificationID,enteredMessage,employeeID,employeeTeam);
 
-                }
-
-                /*String enteredMessage = mComment.getText().toString().trim().replaceAll(System.getProperty("line.separator"), "");
-                if(selectedAction.equalsIgnoreCase("Select action type"))
-                {
-                    showSnackBar(HomeActivity.this,"Please select action type");
-                }
-                else {
-
-                   // showToast("Selected position is =>"+selectionPosition);
-                    if (TextUtils.isEmpty(enteredMessage) || enteredMessage.length() < 5) {
-                        //Toast.makeText(context, "Closing action should be atleast of 5 characters", Toast.LENGTH_SHORT).show();
-                        showToast("Closing action should be atleast of 5 characters");
-                    } else {
-                        alertDialog.dismiss();
-                        callgiveCAAPI(notificationID,enteredMessage,selectionPosition,employeeID,employeeTeam);
-                        //callContainmentActionAPI(notificationID,enteredMessage,employeeID,employeeTeam);
-
-                    }
-
                 }*/
+
+                String enteredMessage = mComment.getText().toString().trim().replaceAll("[^A-Za-z0-9]","");
+
+                // showToast("Selected position is =>"+selectionPosition);
+                if (TextUtils.isEmpty(enteredMessage) || enteredMessage.length() < 5) {
+                    //Toast.makeText(context, "Closing action should be atleast of 5 characters", Toast.LENGTH_SHORT).show();
+                    showToast("Closing action should be atleast of 5 characters");
+                } else if (enteredMessage.length() > 1000) {
+                    showToast("Closing action should not be more than 1000 characters");
+                } else {
+                    alertDialog.dismiss();
+                    callgiveCAAPI(notificationID, enteredMessage, selectionPosition, employeeID, employeeTeam);
+                    //callContainmentActionAPI(notificationID,enteredMessage,employeeID,employeeTeam);
+
+                }
 
                 hideKeyBoard();
                 IS_USER_INTERACTING=false;
@@ -861,7 +933,6 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
 
             }
         });
-
 
     }
 
@@ -1257,8 +1328,8 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                                 jobScheduler.cancel(JOB_ID);
 
                                 Intent logOutIntent = new Intent(HomeActivity.this, LoginActivity.class);
-                                logOutIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-                                logOutIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                              /*  logOutIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                                logOutIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_CLEAR_TASK);*/
                                 startActivity(logOutIntent);
                                 finish();
                                 trimCache(HomeActivity.this);
@@ -1339,28 +1410,24 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         }
        /* callAllAvailableUsersAPI();
         callAllNotificationsAPI();*/
-        finish();
-        overridePendingTransition(0, 0);
+
+
         startActivity(getIntent());
+        overridePendingTransition(0, 0);
+        finish();
 
     }
     public void refreshList()
     {
-        /*NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
-        //To remove all the previous notification icons from notification bar
-
-        if (notificationManager != null) {
-            notificationManager.cancelAll();
-        }*/
-        finish();
         startActivity(getIntent());
         overridePendingTransition(0, 0);
+        finish();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        Log.d("flowcheck","inside onPause()");
+        //Log.d("flowcheck","inside onPause()");
         if(alertDialog!=null)
         {
             if(alertDialog.isShowing())
@@ -1390,18 +1457,22 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     protected void onStop()
     {
         super.onStop();
-        stopTimer();
-        Log.d("flowcheck","inside onStop()");
-        EventBus.getDefault().unregister(this);
+        //stopTimer();
+        //Log.d("flowcheck","inside onStop()");
+       // EventBus.getDefault().unregister(this);
         hideKeyBoard();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        Log.d("flowcheck","inside onDestroy()");
+       // Log.d("flowcheck","inside onDestroy()");
+
+        EventBus.getDefault().unregister(this);
 
         hideKeyBoard();
+        turnOFFFlash();
+
 
        if(alertDialog!=null)
        {
@@ -1434,11 +1505,11 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
 
                if(deleteDir(dir))
                {
-                   Log.d("clearcache","cache cleared");
+                 //  Log.d("clearcache","cache cleared");
 
                }
                else {
-                   Log.d("clearcache","can not clear cache");
+                  // Log.d("clearcache","can not clear cache");
                }
            }
 
@@ -1456,7 +1527,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                 }
             }
 
-            Log.d("cachedfile",dir.getAbsolutePath());
+           // Log.d("cachedfile",dir.getAbsolutePath());
 
             return dir.delete();
         }
@@ -1482,8 +1553,9 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     public void onMessageEvent(NotificationEvent event) {
        /* Do something */
        final String message=event.getMessage();
-       AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
-       Log.d("receivedevent","received event=>"+message);
+       final String dept=event.getDepartment();
+       final AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+      // Log.d("receivedevent","received event=>"+message);
         //Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
 
        /* //To bring back to ringing mode
@@ -1498,11 +1570,17 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         if(message.startsWith("Alert from"))
         {
 
-            /*if (manager != null) {
+            if (manager != null) {
                int streamMaxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_RING);
                 //Toast.makeText(this, Integer.toString(streamMaxVolume), Toast.LENGTH_LONG).show(); //I got 7
                 manager.setStreamVolume(AudioManager.STREAM_RING, streamMaxVolume, AudioManager.FLAG_ALLOW_RINGER_MODES|AudioManager.FLAG_PLAY_SOUND);
-            }*/
+            }
+
+
+            //To bring back to ringing mode
+            if (manager != null) {
+                manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+            }
 
 
             this.refreshHandler.postDelayed(new Runnable() {
@@ -1518,7 +1596,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                 }
             },2000);
 
-            NotificationClass.showNotificationToUser(HomeActivity.this,message);
+            NotificationClass.showNotificationToUser(HomeActivity.this,message,dept);
            // pushUserDetailsToServer();
 
         }
@@ -1545,7 +1623,6 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
             //refreshContent();
             NotificationClass.showNotificationToMOE(HomeActivity.this,"Containment Action done");
 
-
         }
         else {
            /* if (manager != null) {
@@ -1554,9 +1631,21 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                 manager.setStreamVolume(AudioManager.STREAM_RING, streamMaxVolume, AudioManager.FLAG_ALLOW_RINGER_MODES|AudioManager.FLAG_PLAY_SOUND);
             }*/
 
+            //To mute ringing
+            if (manager != null) {
+                manager.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
+            }
+
+            NotificationClass.showNotificationToUser(HomeActivity.this);
+
             this.refreshHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
+
+                    //To bring back to ringing mode
+                    if (manager != null) {
+                        manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+                    }
 
                     // refreshContent();
                     if (!IS_USER_INTERACTING) {
@@ -1564,20 +1653,10 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                         refreshList();
                         refreshHandler.removeCallbacksAndMessages(null);
                     }
+
                 }
             }, 1000);
 
-            NotificationClass.showNotificationToUser(HomeActivity.this);
-
-            //To mute ringing
-            if (manager != null) {
-                manager.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
-            }
-
-            //To bring back to ringing mode
-            if (manager != null) {
-                manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
-            }
         }
 
    }
@@ -1619,6 +1698,86 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         return isInBackground;
+    }
+
+    private void turnONFlash()
+    {
+
+        CameraManager camManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        String cameraId = null; // Usually front camera is at 0 position.
+        try {
+            cameraId = camManager.getCameraIdList()[0];
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                camManager.setTorchMode(cameraId, true);
+
+                isFlashEnabled=true;
+
+                mFlash.startAnimation(zoomin);
+
+                mFlash.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorPrimary,this.getTheme())));
+                mFlash.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.ic_highlight_white));
+            }
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void turnOFFFlash()
+    {
+
+        CameraManager camManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        String cameraId = null; // Usually front camera is at 0 position.
+        try {
+            cameraId = camManager.getCameraIdList()[0];
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                camManager.setTorchMode(cameraId, false);
+
+                isFlashEnabled=false;
+                mFlash.startAnimation(zoomout);
+
+                mFlash.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.dark_gray,this.getTheme())));
+                mFlash.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.ic_highlight_black));
+
+            }
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public class DeleteRecursive extends AsyncTask<Void,Void,Void>
+    {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+
+    }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            try
+            {
+                File toDelete = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath(), "ANDON.apk");
+                deleteRecursive(toDelete);
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+
+
+            return null;
+        }
+    }
+
+    void deleteRecursive(File fileOrDirectory) {
+
+        if (fileOrDirectory.isDirectory())
+            for (File child : fileOrDirectory.listFiles())
+                deleteRecursive(child);
+
+        fileOrDirectory.delete();
+
     }
 
 }

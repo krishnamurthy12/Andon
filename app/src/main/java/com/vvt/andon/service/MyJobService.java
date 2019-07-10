@@ -19,7 +19,7 @@ public class MyJobService extends JobService {
     public boolean onStartJob(JobParameters params) {
 
       /* String receivedString= params.getExtras().getString("KEY");*/
-        Log.d("MyJobService","MyJobService started");
+      //  Log.d("MyJobService","MyJobService started");
 
        /* MyAsyntask myAsyntask=new MyAsyntask(params);
         myAsyntask.execute();*/
@@ -50,12 +50,12 @@ public class MyJobService extends JobService {
         if (manager != null) {
             for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
                 if (serviceClass.getName().equals(service.service.getClassName())) {
-                    Log.i ("isMyServiceRunning?", true+"");
+                    //Log.i ("isMyServiceRunning?", true+"");
                     return true;
                 }
             }
         }
-        Log.i ("isMyServiceRunning?", false+"");
+        //Log.i ("isMyServiceRunning?", false+"");
         return false;
     }
 
@@ -92,7 +92,7 @@ public class MyJobService extends JobService {
 
     @Override
     public boolean onStopJob(JobParameters params) {
-        Log.d("MyJobService","MyJobService Stoped");
+       // Log.d("MyJobService","MyJobService Stoped");
         //Toast.makeText(getApplicationContext(), "MyJobService stopped", Toast.LENGTH_SHORT).show();
         return false;
     }

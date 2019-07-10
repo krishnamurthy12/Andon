@@ -4,7 +4,8 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.NotificationManager;
-import android.content.BroadcastReceiver;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -13,15 +14,16 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -31,6 +33,8 @@ import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -44,14 +48,19 @@ import android.widget.Toast;
 import com.vvt.andon.R;
 import com.vvt.andon.api_responses.login.UserLoginResponse;
 import com.vvt.andon.utils.AndonUtils;
+import com.vvt.andon.utils.AndonDeviceAdminReceiver;
 import com.vvt.andon.utils.OnResponseListener;
 import com.vvt.andon.utils.WebServices;
 
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.net.URL;
 import java.util.Enumeration;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -67,15 +76,13 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
     TextView mPasswordOkButton, mPasswordCancelButton, mIpaddressOkButton, mIpaddressCancelButton;
     TextView mVersionName;
     ProgressBar mProgressbar;
+    Animation zoomin,zoomout;
 
     String employeeName, employeeID, password, ipAddress;
     Toast mToast;
     Snackbar snackbar;
     public static String IP_ADDRESS_PREFERENCE = "IPADDRESS_SHARED_PREFERENCE";
     public static String LOGIN_PREFERENCE = "LOGIN_SHARED_PREFERENCE";
-
-
-    private static final int MY_PERMISSIONS_REQUEST_READ_PHONE_STATE = 0;
 
     public static String DEVICE_UNIQUE_NUMBER="",DEVICE_IPADDRESS="";
 
@@ -85,9 +92,13 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
     PackageInfo pinfo = null;
     String versionName;
 
-    int PERMISSION_ALL = 1;
+    String[] PERMISSIONS = { Manifest.permission.READ_PHONE_STATE,Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    final int MULTGIPLE_PERMISSION_CODE=123;
+    private static final int MY_PERMISSIONS_REQUEST_READ_PHONE_STATE = 0;
+    private static final int REQUEST_WRITE_PERMISSION = 786;
 
-    String[] PERMISSIONS = { Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    private DevicePolicyManager mgr=null;
+    private ComponentName cn=null;
 
     @Override
     protected void onStart() {
@@ -101,28 +112,25 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
         {
          showToast("IP address is empty");
         }
-        loadIMEI();
 
         //AndonUtils.saveIPtoExternalDirectory(this,"123456789");
 
         //String savedIP=AndonUtils.getIPFromExternalDirectory(this);
-        //Log.d("savedip",savedIP);
+        ////Log.d("savedip",savedIP);
        // getBattery_percentage();
        // this.registerReceiver(this.mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         DEVICE_IPADDRESS=getLocalIpAddress();
 
         if(!hasPermissions(this, PERMISSIONS)){
-            // Permission is not granted
-            // Should we show an explanation?
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                showToast("storage permission has not granted");
-                // Show an explanation to the user *asynchronously* -- don't block
-                // this thread waiting for the user's response! After the user
-                // sees the explanation, try again to request the permission.
-            } else {
-                ActivityCompat.requestPermissions(this, PERMISSIONS, PERMISSION_ALL);
-            }
+            //requestPermission();
+            ActivityCompat.requestPermissions(this, PERMISSIONS, MULTGIPLE_PERMISSION_CODE);
+        }
+        else
+        {
+            loadIMEI();
+            DEVICE_IPADDRESS=getLocalIpAddress();
+            new VersionCheck().execute();
+
         }
 
         NotificationManager notif = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -130,7 +138,7 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
             notif.cancelAll();
         }
 
-        Log.d("devive details","IMEI/UNIQUEID=>"+DEVICE_UNIQUE_NUMBER+"IP address=>"+DEVICE_IPADDRESS);
+        //Log.d("devive details","IMEI/UNIQUEID=>"+DEVICE_UNIQUE_NUMBER+"IP address=>"+DEVICE_IPADDRESS);
 
         try {
             pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
@@ -140,6 +148,29 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
         }
+
+
+    }
+
+    public void lockMeNow() {
+
+        cn=new ComponentName(this, AndonDeviceAdminReceiver.class);
+        mgr=(DevicePolicyManager)getSystemService(DEVICE_POLICY_SERVICE);
+
+        if (mgr.isAdminActive(cn)) {
+          //mgr.lockNow();
+
+            long timeMs =1000*60*5;
+            mgr.setMaximumTimeToLock(cn, timeMs);
+        }
+        else {
+            Intent intent=
+                    new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
+            intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, cn);
+            intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                    "For experimentation purposes only");
+            startActivity(intent);
+        }
     }
 
     void getBattery_percentage()
@@ -148,17 +179,95 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
         Intent batteryStatus = getApplicationContext().registerReceiver(null, ifilter);
         int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
         int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+
+        batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
         float batteryPct = level / (float)scale;
         float p = batteryPct * 100;
         Toast.makeText(this, "Battery level is=>"+String.valueOf(Math.round(p)), Toast.LENGTH_SHORT).show();
 
-        Log.d("Battery percentage",String.valueOf(Math.round(p)));
+        //Log.d("Battery percentage",String.valueOf(Math.round(p)));
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.CUPCAKE)
+    private class VersionCheck extends AsyncTask<Void,Void,String>
+    {
+
+        SharedPreferences sharedPreferences=getSharedPreferences(IP_ADDRESS_PREFERENCE,MODE_PRIVATE);
+        String ipAddress=AndonUtils.getIPAddress(LoginActivity.this);
+
+        @Override
+        protected String doInBackground(Void... voids) {
+
+            try {
+                if(ipAddress!=null)
+                {
+                    URL url = new URL("http://"+ipAddress+":8080/AndroidApk/Andon/Version.txt");
+                    String text = new Scanner( url.openStream() ).useDelimiter("\\A").next();
+                    System.out.println(text);
+
+                    Log.d("versioncode","on server=>"+text);
+                    return text;
+                }
+                else {
+                    return "IP address is empty";
+                }
+
+            } catch (MalformedURLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+
+            if(versionName!=null && s!=null)
+            {
+                if(s.equalsIgnoreCase("IP address is empty"))
+                {
+                    showToast(s);
+                }
+                else {
+                    double currentVersion= Double.parseDouble(versionName);
+
+                    double availableVersion= Double.parseDouble(s);
+
+                    if(availableVersion>currentVersion)
+                    {
+                        if (ActivityCompat.checkSelfPermission(LoginActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                != PackageManager.PERMISSION_GRANTED) {
+
+                            ActivityCompat.requestPermissions(LoginActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                                    REQUEST_WRITE_PERMISSION);
+                        }
+                        else {
+                            startActivity(new Intent(LoginActivity.this, DownloadActivity.class));
+                        }
+
+
+                    }
+                }
+
+
+            }
+            Log.d("versioncode","post execute=>"+s);
+        }
     }
 
     @Override
     protected void onStop() {
         super.onStop();
         //unregisterReceiver(mBatInfoReceiver);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 
     /*private BroadcastReceiver mBatInfoReceiver = new BroadcastReceiver(){
@@ -171,7 +280,7 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
 
             Toast.makeText(LoginActivity.this, "Battery level is=>"+String.valueOf(Math.round(p)), Toast.LENGTH_SHORT).show();
 
-            Log.d("Battery percentage",String.valueOf(Math.round(p)));
+            //Log.d("Battery percentage",String.valueOf(Math.round(p)));
 
         }
     };*/
@@ -191,6 +300,7 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
             gotoHomeActivity();
         }
         initializeViews();
+        lockMeNow();
     }
 
     private void initializeViews() {
@@ -201,6 +311,11 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
         mIPAddressEditText = findViewById(R.id.vE_ipaddress);
 
         mShowPassword = findViewById(R.id.vC_show_password);
+
+        zoomin = AnimationUtils.loadAnimation(this, R.anim.zoom_in);
+        zoomout = AnimationUtils.loadAnimation(this, R.anim.zoom_out);
+       /* mFlash.setAnimation(zoomin);
+        mFlash.setAnimation(zoomout);*/
 
         mLoginButton = findViewById(R.id.vB_login);
         mLoginButton.setOnClickListener(this);
@@ -263,18 +378,11 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
         }
     }
 
-    private void CheckLogInStatus() {
-        if (isLoggedIn) {
-            //Goto next page
-        } else {
-            //initialize views
-        }
-    }
-
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.vB_login:
+
                 if(mProgressbar!=null)
                 {
                     if(mProgressbar.getVisibility()==View.VISIBLE)
@@ -286,7 +394,6 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
                         validateFields();
                     }
                 }
-
 
                 //callLoginAPI();
                 //gotoHomeActivity();
@@ -311,6 +418,8 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
             case R.id.vT_ipaddress_ok:
                 saveIpAddress();
                 break;
+
+
         }
 
     }
@@ -551,7 +660,7 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
 
         SharedPreferences.Editor editor = preferences.edit();
         if (preferences.contains("IS_LOGGEDIN")) {
-            Log.d("savingvalues","inside preferences if block");
+            //Log.d("savingvalues","inside preferences if block");
             editor.clear();
             editor.apply();
         }
@@ -569,12 +678,12 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
         SharedPreferences.Editor editor1=devicePreferences.edit();
         if(devicePreferences.contains("PUSH_URL"))
         {
-            Log.d("savingvalues","inside devicePreferences if block");
+            //Log.d("savingvalues","inside devicePreferences if block");
             editor1.clear();
             editor1.apply();
         }
 
-        Log.d("savingvalues","imei=>"+DEVICE_UNIQUE_NUMBER+" ip=>"+DEVICE_IPADDRESS+" ntuid=>"+ntUserID+" empname=>"+employeeName);
+        //Log.d("savingvalues","imei=>"+DEVICE_UNIQUE_NUMBER+" ip=>"+DEVICE_IPADDRESS+" ntuid=>"+ntUserID+" empname=>"+employeeName);
 
         String pushDetailsURL= "http://"+ipAddress+":8080/AndonWebservices/rest/userinfo/"+employeeName+"/"+ntUserID+"/"+DEVICE_UNIQUE_NUMBER+"/"+DEVICE_IPADDRESS;
 
@@ -668,15 +777,15 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
             if (null == DEVICE_UNIQUE_NUMBER || 0 == DEVICE_UNIQUE_NUMBER.length()) {
                 DEVICE_UNIQUE_NUMBER = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
             }
-           // Log.d("devive details","IMEI/UNIQUEID=>"+DEVICE_UNIQUE_NUMBER+"IP address=>"+DEVICE_IPADDRESS);
+           // //Log.d("devive details","IMEI/UNIQUEID=>"+DEVICE_UNIQUE_NUMBER+"IP address=>"+DEVICE_IPADDRESS);
         }
     }
 
 
     public static boolean hasPermissions(Context context, String... permissions) {
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && context != null && permissions != null) {
+        if (context != null && permissions != null) {
             for (String permission : permissions) {
-                if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
                     return false;
                 }
             }
@@ -689,32 +798,44 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener,
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_ALL) {
-            if (grantResults.length > 0
-                    && grantResults[0] == PackageManager.PERMISSION_GRANTED )
-            {
-               //Location permission granted
 
-            }
-            else {
-                //finish();
-                //recreate();
-            }
-        }
-        else if (requestCode == MY_PERMISSIONS_REQUEST_READ_PHONE_STATE) {
+        switch (requestCode)
+        {
+            case MULTGIPLE_PERMISSION_CODE:
 
-            if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                TelephonyManager tm = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
-                if (null != tm) {
-                    DEVICE_UNIQUE_NUMBER = tm.getDeviceId();
+                    TelephonyManager tm = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
+                    if (null != tm) {
+                        DEVICE_UNIQUE_NUMBER = tm.getDeviceId();
+                    }
+                    if (null == DEVICE_UNIQUE_NUMBER || 0 == DEVICE_UNIQUE_NUMBER.length()) {
+                        DEVICE_UNIQUE_NUMBER = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
+                    }
                 }
-                if (null == DEVICE_UNIQUE_NUMBER || 0 == DEVICE_UNIQUE_NUMBER.length()) {
-                    DEVICE_UNIQUE_NUMBER = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
+                break;
+
+            case MY_PERMISSIONS_REQUEST_READ_PHONE_STATE:
+
+                if (grantResults.length >0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    TelephonyManager tm = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
+                    if (null != tm) {
+                        DEVICE_UNIQUE_NUMBER = tm.getDeviceId();
+                    }
+                    if (null == DEVICE_UNIQUE_NUMBER || 0 == DEVICE_UNIQUE_NUMBER.length()) {
+                        DEVICE_UNIQUE_NUMBER = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
+                    }
                 }
 
-            }
+                break;
+            case REQUEST_WRITE_PERMISSION:
+                if (grantResults.length >0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    startActivity(new Intent(LoginActivity.this, DownloadActivity.class));
+                }
+                break;
         }
     }
+
 }
 

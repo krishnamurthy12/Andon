@@ -32,17 +32,17 @@ public interface AndonAPI {
     @GET("notification/accept/{notificationId}/{employeeId}/{team}")
     Call<InteractionResponse> notificationAccept(@Path("notificationId")String notificationID, @Path("employeeId")String employeeID, @Path("team") String team);
 
-   /* @GET("action/{notificationId}/{action}/{actionType}/{employeeId}/{team}")
+    @GET("action/{notificationId}/{action}/{actionType}/{employeeId}/{team}")
     Call<InteractionResponse> giveCA(@Path("notificationId")String notificationId,
                                    @Path("action")String action,
                                      @Path("actionType")String actionType,
                                    @Path("employeeId") String employeeId,
-                                   @Path("team") String team);*/
-   @GET("action/{notificationId}/{action}/{employeeId}/{team}")
+                                   @Path("team") String team);
+   /*@GET("action/{notificationId}/{action}/{employeeId}/{team}")
    Call<InteractionResponse> giveCA(@Path("notificationId")String notificationId,
                                     @Path("action")String action,
                                     @Path("employeeId") String employeeId,
-                                    @Path("team") String team);
+                                    @Path("team") String team);*/
 
     @GET("action/{notificationId}/{team}")
     Call<InteractionResponse> getCAGiven(@Path("notificationId")String notificationID,@Path("team") String team);

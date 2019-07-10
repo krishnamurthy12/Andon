@@ -17,7 +17,7 @@ import com.vvt.andon.activities.HomeActivity;
 public class NotificationClass {
 
     /*Trigger notification with Message*/
-    public static void showNotificationToUser(Context context,String msg) {
+    public static void showNotificationToUser(Context context,String msg,String department) {
         String CHANNEL_ID = "andon_channel_for_initial_alert";
         CharSequence name = "Andon_initial_alert_channel";
         String Description = "Andon notification channel1";
@@ -45,7 +45,7 @@ public class NotificationClass {
                 //Notification notification = new Notification.Builder(this)
                 .setContentTitle("Andon")
                 .setContentText(msg)
-                .setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.tring_tring))
+
                 .setContentIntent(contentIntent)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setAutoCancel(true)
@@ -53,6 +53,15 @@ public class NotificationClass {
                 .setDefaults(Notification.DEFAULT_LIGHTS | Notification.DEFAULT_VIBRATE )
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(msg))
                 .setStyle(new NotificationCompat.InboxStyle());
+
+        if (department.equalsIgnoreCase("TEF12")) {
+            /*For EC TEF team*/
+            builder.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.office_phone_ringigng));
+        } else {
+            /* Rest of TEF*/
+            builder.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.tring_tring));
+        }
+
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             // Creating an Audio Attribute
@@ -66,7 +75,21 @@ public class NotificationClass {
             int importance = NotificationManager.IMPORTANCE_HIGH;
             NotificationChannel mChannel = new NotificationChannel(CHANNEL_ID, name, importance);
             mChannel.setDescription(Description);
-            mChannel.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.tring_tring),audioAttributes);
+
+          if(department.equalsIgnoreCase("TEF12"))
+          {
+               /*
+          Ringtone Only to EC TEF team
+          */
+              mChannel.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.office_phone_ringigng),audioAttributes);
+          }
+          else {
+               /*
+            Ringtone For rest others
+            * */
+              mChannel.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.tring_tring),audioAttributes);
+          }
+
             mChannel.enableLights(true);
             mChannel.setLightColor(Color.RED);
             mChannel.enableVibration(true);

@@ -11,7 +11,7 @@ public class CustomReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         //Toast.makeText(context, "Service restarting", Toast.LENGTH_SHORT).show();
-        Log.d(getClass().getCanonicalName(), "onReceive");
+       // Log.d(getClass().getCanonicalName(), "onReceive");
         //context.startService(new Intent(context, MQTTService1.class));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

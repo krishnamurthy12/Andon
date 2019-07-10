@@ -71,7 +71,34 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         holder.mComplaintStatus.setText(mList.get(position).getNotificationStatus());
         holder.mDateTime.setText(mList.get(position).getCreatedDate());
 
-      /*  try {
+        if(mList.get(position).getNotificationStatus().equalsIgnoreCase("Kit Prepared"))
+        {
+
+            ObjectAnimator anim = ObjectAnimator.ofInt( holder.mRootlayout, "backgroundColor", Color.WHITE,context.getResources().getColor(R.color.green),
+                        Color.WHITE);
+                anim.setDuration(2000);
+                anim.setEvaluator(new ArgbEvaluator());
+                anim.setRepeatMode(Animation.REVERSE);
+                anim.setRepeatCount(Animation.INFINITE);
+                anim.start();
+
+        }
+        else if(mList.get(position).getNotificationStatus().equalsIgnoreCase("Maze Request Confirmed"))
+        {
+
+            //
+            holder.mComplaintStatus.setTextColor(context.getResources().getColor(R.color.green));
+
+        }
+        else if(mList.get(position).getNotificationStatus().equalsIgnoreCase("Maze Request Raised"))
+        {
+
+            //
+            holder.mComplaintStatus.setTextColor(context.getResources().getColor(R.color.red));
+
+        }
+
+        try {
             Date createdTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSS").parse(mList.get(position).getCreatedDate());
             Date now = new Date();
 
@@ -83,39 +110,14 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
             if(numOfDays>=1 || hours>=1 || minutes>=20)
             {
-
-               *//* ObjectAnimator anim = ObjectAnimator.ofInt( holder.mRootlayout, "backgroundColor", Color.WHITE,context.getResources().getColor(R.color.highlight),
-                        Color.WHITE);
-                anim.setDuration(2000);
-                anim.setEvaluator(new ArgbEvaluator());
-                anim.setRepeatMode(Animation.REVERSE);
-                anim.setRepeatCount(Animation.INFINITE);
-                anim.start();*//*
-                //holder.mRootlayout.setBackgroundColor(context.getResources().getColor(R.color.highlight));
-
                 holder.mRootlayout.setBackgroundResource(R.drawable.card_border);
-                Log.d("dateformatting","\ndays=>"+numOfDays+"\n Hours=>"+hours+"\nminutes=>"+minutes+"\nseconds=>"+seconds);
+               // Log.d("dateformatting","\ndays=>"+numOfDays+"\n Hours=>"+hours+"\nminutes=>"+minutes+"\nseconds=>"+seconds);
             }
 
 
         } catch (ParseException e) {
-            Log.d("dateformatting",e.getMessage());
+            //Log.d("dateformatting",e.getMessage());
             e.printStackTrace();
-        }*/
-
-
-
-
-        if (mList.get(position).getImageLink() != null) {
-            if (mList.get(position).getImageLink().endsWith(".png")) {
-                String imageUrl = "http://" + HomeActivity.ipAddress + ":8080/AndonWebservices/";
-                Picasso.get()
-                        .load(imageUrl + mList.get(position).getImageLink())
-                        //.placeholder(R.drawable.background_drawable)
-                        //.error(R.drawable.user)
-                        //.resize(150,150)
-                        .into(holder.mImage);
-            }
         }
 
         // Here you apply the animation when the view is bound
@@ -157,15 +159,12 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     public class MyHolder extends RecyclerView.ViewHolder {
 
         LinearLayout mRootlayout;
-        public ImageView mImage;
         public TextView mErrorID, mErrorMessage, mLine,mStation, mTeam, mAcceptedby, mComplaintStatus, mDateTime;
 
         public MyHolder(View itemView) {
             super(itemView);
 
             mRootlayout=itemView.findViewById(R.id.vC_nsr_root_layout);
-
-            mImage = itemView.findViewById(R.id.vI_working_image);
 
             mErrorID = itemView.findViewById(R.id.vT_error_id);
             mErrorMessage = itemView.findViewById(R.id.vT_error_message);

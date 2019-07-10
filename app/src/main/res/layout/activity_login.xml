@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -19,7 +19,7 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
 
             android:orientation="vertical">
 
@@ -81,7 +81,8 @@
                     android:background="@drawable/edit_text_background"
                     android:hint="@string/enter_nt_userid"
                     android:inputType="textPersonName"
-                    android:paddingLeft="26dp"
+                    android:paddingStart="26dp"
+                    android:paddingEnd="0dp"
                     android:singleLine="true" />
 
                 <EditText
@@ -96,7 +97,8 @@
                     android:ems="10"
                     android:hint="@string/enter_employee_id"
                     android:inputType="textPassword"
-                    android:paddingLeft="26dp"
+                    android:paddingStart="26dp"
+                    android:paddingEnd="0dp"
                     android:singleLine="true" />
 
                 <CheckBox
@@ -104,7 +106,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="start"
-                    android:layout_marginLeft="16dp"
+                    android:layout_marginStart="16dp"
                     android:layout_marginTop="8dp"
                     android:buttonTint="@color/colorPrimary"
                     android:text="@string/show_password"
@@ -184,7 +186,8 @@
                             android:hint="@string/enter_password"
                             android:textSize="16sp"
                             android:inputType="textPassword"
-                            android:paddingLeft="16dp"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="0dp"
                             android:singleLine="true"
                             android:textColorHint="@color/dark_gray" />
 
@@ -242,14 +245,15 @@
                         android:hint="@string/enter_ip_address"
                         android:backgroundTint="@color/colorPrimary"
                         android:paddingStart="16dp"
+                        android:paddingEnd="0dp"
                         android:singleLine="true"
                         android:textColorHint="@color/dark_gray" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginRight="26dp"
-                        android:gravity="right"
+                        android:layout_marginEnd="26dp"
+                        android:gravity="end"
                         android:orientation="horizontal">
 
                         <TextView
@@ -257,7 +261,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="center_horizontal"
-                            android:layout_marginRight="26dp"
+                            android:layout_marginEnd="26dp"
                             android:text="@string/cancel"
                             android:textSize="18sp" />
 
@@ -266,8 +270,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="center_horizontal"
-                            android:layout_marginLeft="26dp"
-                            android:layout_marginRight="16dp"
+                            android:layout_marginStart="26dp"
+                            android:layout_marginEnd="16dp"
                             android:text="@string/ok"
                             android:textColor="@color/colorPrimary"
                             android:textSize="18sp" />
@@ -291,6 +295,6 @@
         </LinearLayout>
 
     </ScrollView>
-</RelativeLayout>
+</LinearLayout>
 
 

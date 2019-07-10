@@ -238,13 +238,13 @@ public class WebServices<T> {
     }
 
 
-    public void giveCA(String api,ApiType apiTypes,String notificationId,String enteredMessage,String employeeId,String team)
+    public void giveCA(String api,ApiType apiTypes,String notificationId,String enteredMessage,String actionType,String employeeId,String team)
     {
         apiTypeVariable = apiTypes;
         Retrofit retrofit=getRetrofitClient(api);
 
         AndonAPI andonAPI=retrofit.create(AndonAPI.class);
-        call=(Call<T>)andonAPI.giveCA(notificationId,enteredMessage,employeeId,team);
+        call=(Call<T>)andonAPI.giveCA(notificationId,enteredMessage,actionType,employeeId,team);
         call.enqueue(new Callback<T>() {
             @Override
             public void onResponse(Call<T> call, Response<T> response) {
