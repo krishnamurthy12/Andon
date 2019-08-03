@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 27/2/19 11:55 AM
+ */
+
 package com.vvt.andon.service;
 
 import android.app.ActivityManager;

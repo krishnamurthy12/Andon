@@ -1,7 +1,12 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 24/7/19 2:23 PM
+ */
+
 package com.vvt.andon.adapters;
 
 import android.content.Context;
-import android.os.AsyncTask;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,7 +19,6 @@ import android.widget.TextView;
 import com.squareup.picasso.Picasso;
 import com.vvt.andon.R;
 import com.vvt.andon.activities.HomeActivity;
-import com.vvt.andon.api_responses.allnotifications.NotificationList;
 import com.vvt.andon.api_responses.allusers.EmployeeStatusList;
 
 import java.util.ArrayList;
@@ -60,7 +64,7 @@ public class EmployeesAdapter extends RecyclerView.Adapter<EmployeesAdapter.MyHo
             else
             {
                 Picasso.get()
-                        .load(R.drawable.emoty)
+                        .load(R.drawable.user_icon)
                         //.placeholder(R.drawable.background_drawable)
                         //.error(R.drawable.user)
                         //.resize(150,150)

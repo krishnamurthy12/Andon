@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 17/7/19 3:26 PM
+ */
+
 package com.vvt.andon.utils;
 
 import android.app.Notification;
@@ -16,11 +22,11 @@ import com.vvt.andon.activities.HomeActivity;
 
 public class NotificationClass {
 
-    /*Trigger notification with Message*/
+    /*Trigger moe_notification with Message*/
     public static void showNotificationToUser(Context context,String msg,String department) {
         String CHANNEL_ID = "andon_channel_for_initial_alert";
         CharSequence name = "Andon_initial_alert_channel";
-        String Description = "Andon notification channel1";
+        String Description = "Andon moe_notification channel1";
 
         int NOTIFICATION_ID = 123;
 
@@ -33,7 +39,7 @@ public class NotificationClass {
 
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        //To remove all the previous notification icons from notification bar
+        //To remove all the previous moe_notification icons from moe_notification bar
         if (notificationManager != null) {
             notificationManager.cancelAll();
         }
@@ -42,7 +48,7 @@ public class NotificationClass {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
 
-                //Notification notification = new Notification.Builder(this)
+                //Notification moe_notification = new Notification.Builder(this)
                 .setContentTitle("Andon")
                 .setContentText(msg)
 
@@ -54,12 +60,12 @@ public class NotificationClass {
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(msg))
                 .setStyle(new NotificationCompat.InboxStyle());
 
-        if (department.equalsIgnoreCase("TEF12")) {
+        if (department.equalsIgnoreCase("TEFF")) {
             /*For EC TEF team*/
-            builder.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.office_phone_ringigng));
+            builder.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.ec_alert));
         } else {
             /* Rest of TEF*/
-            builder.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.tring_tring));
+            builder.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.regular_alert));
         }
 
 
@@ -76,18 +82,18 @@ public class NotificationClass {
             NotificationChannel mChannel = new NotificationChannel(CHANNEL_ID, name, importance);
             mChannel.setDescription(Description);
 
-          if(department.equalsIgnoreCase("TEF12"))
+          if(department.equalsIgnoreCase("TEFF"))
           {
                /*
           Ringtone Only to EC TEF team
           */
-              mChannel.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.office_phone_ringigng),audioAttributes);
+              mChannel.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.ec_alert),audioAttributes);
           }
           else {
                /*
             Ringtone For rest others
             * */
-              mChannel.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.tring_tring),audioAttributes);
+              mChannel.setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.regular_alert),audioAttributes);
           }
 
             mChannel.enableLights(true);
@@ -111,11 +117,11 @@ public class NotificationClass {
 
     }
 
-    /*Trigger notification to MOE with Message*/
+    /*Trigger moe_notification to MOE with Message*/
     public static void showNotificationToMOE(Context context,String msg) {
         String CHANNEL_ID = "andon_channel_for_moecomment";
         CharSequence name = "Andon_MOE_channel";
-        String Description = "Andon notification channel2";
+        String Description = "Andon moe_notification channel2";
 
         int NOTIFICATION_ID = 123;
 
@@ -127,7 +133,7 @@ public class NotificationClass {
         //NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        //To remove all the previous notification icons from notification bar
+        //To remove all the previous moe_notification icons from moe_notification bar
         if (notificationManager != null) {
             notificationManager.cancelAll();
         }
@@ -153,10 +159,10 @@ public class NotificationClass {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "Andon")
 
-                //Notification notification = new Notification.Builder(this)
+                //Notification moe_notification = new Notification.Builder(this)
                 .setContentTitle("Andon")
                 .setContentText(msg)
-                .setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.notification))
+                .setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.moe_notification))
                 .setContentIntent(contentIntent)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setAutoCancel(true)
@@ -172,11 +178,11 @@ public class NotificationClass {
 
     }
 
-    /*Trigger notification without Message Just used to indicate refreshing */
+    /*Trigger moe_notification without Message Just used to indicate refreshing */
     public static void showNotificationToUser(Context context) {
         String CHANNEL_ID = "andon_channel_for_refreshment";
         CharSequence name = "Andon_refreshment_channel";
-        String Description = "Andon notification channel3";
+        String Description = "Andon moe_notification channel3";
 
         int NOTIFICATION_ID = 123;
 
@@ -189,7 +195,7 @@ public class NotificationClass {
 
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        //To remove all the previous notification icons from notification bar
+        //To remove all the previous moe_notification icons from moe_notification bar
         if (notificationManager != null) {
             notificationManager.cancelAll();
         }
@@ -214,11 +220,11 @@ public class NotificationClass {
 
         // Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
-        /*Notification notification = new Notification.Builder(this)*/
+        /*Notification moe_notification = new Notification.Builder(this)*/
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentText("")
                 .setContentTitle("Andon")
-                // .setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.tring_tring))
+                // .setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.regular_alert))
                 .setContentIntent(contentIntent)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setAutoCancel(true)

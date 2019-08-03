@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 17/7/19 4:41 PM
+ */
+
 package com.vvt.andon.utils;
 
 import com.vvt.andon.api_responses.allnotifications.AllNotificationsResponse;
@@ -26,8 +32,6 @@ public interface AndonAPI {
 
     @GET("loginstatus/status/{dept}/{valueStream}")
     Call<AllAvailableUsersResponse> getAllCurrentUsers(@Path("dept")String department, @Path("valueStream")String valueStream);
-
-
 
     @GET("notification/accept/{notificationId}/{employeeId}/{team}")
     Call<InteractionResponse> notificationAccept(@Path("notificationId")String notificationID, @Path("employeeId")String employeeID, @Path("team") String team);

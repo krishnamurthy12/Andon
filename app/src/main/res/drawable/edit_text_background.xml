@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 
+<!--
+  ~ Created by Krishnamurthy T
+  ~ Copyright (c) 2019 .  V V Technologies All rights reserved.
+  ~ Last modified 11/5/18 9:16 AM
+  -->
+
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:thickness="0dp"
     android:shape="rectangle">

@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 12/6/19 4:06 PM
+ */
+
 package com.vvt.andon.adapters;
 
 import android.animation.ArgbEvaluator;

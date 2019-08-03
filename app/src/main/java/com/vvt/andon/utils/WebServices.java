@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 16/7/19 2:51 PM
+ */
+
 package com.vvt.andon.utils;
 
 import android.app.Activity;
@@ -37,7 +43,7 @@ public class WebServices<T> {
         this.t = t;
     }
     ApiType apiTypeVariable;
-    Context context;
+    private Context context;
     OnResponseListener<T> onResponseListner;
     private static OkHttpClient.Builder builder;
 
@@ -67,9 +73,6 @@ public class WebServices<T> {
 
             this.context = (Context) onResponseListner;
         }
-        else if (onResponseListner instanceof Adapter) {
-            this.context = (Context) onResponseListner;
-        }
             else {
             android.support.v4.app.Fragment fragment = (android.support.v4.app.Fragment) onResponseListner;
             this.context = fragment.getActivity();
@@ -88,8 +91,10 @@ public class WebServices<T> {
     public OkHttpClient.Builder getHttpClient() {
 
         if (builder == null) {
+
             HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
             loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+
             OkHttpClient.Builder client = new OkHttpClient.Builder();
             client.connectTimeout(10000, TimeUnit.SECONDS);
             client.readTimeout(10000, TimeUnit.SECONDS).build();
@@ -117,6 +122,7 @@ public class WebServices<T> {
         Retrofit retrofit=getRetrofitClient(api);
 
         AndonAPI andonAPI=retrofit.create(AndonAPI.class);
+
         call=(Call<T>)andonAPI.logIn(username,userID);
         call.enqueue(new Callback<T>() {
             @Override

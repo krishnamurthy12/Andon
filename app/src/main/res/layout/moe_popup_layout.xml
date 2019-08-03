@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Created by Krishnamurthy T
+  ~ Copyright (c) 2019 .  V V Technologies All rights reserved.
+  ~ Last modified 17/5/18 4:59 PM
+  -->
+
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/layout_root"
     android:layout_width="fill_parent"

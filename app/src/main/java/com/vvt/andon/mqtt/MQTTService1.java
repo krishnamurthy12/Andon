@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 17/7/19 4:34 PM
+ */
+
 package com.vvt.andon.mqtt;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
@@ -73,6 +79,7 @@ public class MQTTService1 extends Service {
 
     MQTTBroadcastReceiver mqttBroadcastReceiver;
 
+    AudioManager manager ;
     class MQTTBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -193,6 +200,8 @@ public class MQTTService1 extends Service {
         }
 
         lastStartedID=startId;
+
+        manager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
 
         Log.d("adghjj","inside onstart command restarting");
 
@@ -432,7 +441,7 @@ public class MQTTService1 extends Service {
             String body = new String(msg.getPayload());
             Log.i(TAG, "Message arrived from topic" + topic);
             Log.i(TAG, "Message arrived is" + body);
-            final AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+
 
             SharedPreferences preferences=getSharedPreferences("LOGIN_SHARED_PREFERENCE",MODE_PRIVATE);
 
@@ -451,32 +460,38 @@ public class MQTTService1 extends Service {
                     manager.setStreamVolume(AudioManager.STREAM_ALARM, manager.getStreamMaxVolume(valuess), 0);
                 }*/
 
+
                 if (body.contains("#")) {
                     //refresh case
 
                     //To mute ringing
                     if (manager != null) {
-                        manager.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
+                        manager.setRingerMode(AudioManager.RINGER_MODE_SILENT);
                     }
 
-                    showNotificationToUser(MQTTService1.this);
                     EventBus.getDefault().post(new NotificationEvent("#",topic));
+                    showNotificationToUser(MQTTService1.this);
 
-                    //To bring back to ringing mode
-                    if (manager != null) {
-                        manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
-                    }
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            //To bring back to ringing mode
+
+                            if (manager != null) {
+                                manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+                            }
+                        }
+                    },1000);
 
 
                 } else if (body.startsWith("Alert from")) {
                     //Initial case
 
-                    if (manager != null) {
+                  /*  if (manager != null) {
                         int streamMaxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_RING);
                         //Toast.makeText(this, Integer.toString(streamMaxVolume), Toast.LENGTH_LONG).show(); //I got 7
                         manager.setStreamVolume(AudioManager.STREAM_RING, streamMaxVolume, AudioManager.FLAG_ALLOW_RINGER_MODES|AudioManager.FLAG_PLAY_SOUND);
-                    }
-
+                    }*/
 
                     //To bring back to ringing mode
                     if (manager != null) {
@@ -498,10 +513,30 @@ public class MQTTService1 extends Service {
 
                 } else if (body.contains("MOE")) {
                     //This will occur when CA is Done
-                    //push notification only to MOE Team
+                    //push moe_notification only to MOE Team
                     EventBus.getDefault().post(new NotificationEvent("MOE",topic));
                     showNotificationToMOE(MQTTService1.this,"Containment Action done");
                     //showNotificationToUser("Containment Action done");
+                }
+                else {
+                    //To mute ringing
+                    if (manager != null) {
+                        manager.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
+                    }
+
+                    EventBus.getDefault().post(new NotificationEvent("#",topic));
+                    showNotificationToUser(MQTTService1.this);
+
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            //To bring back to ringing mode
+
+                            if (manager != null) {
+                                manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+                            }
+                        }
+                    },500);
                 }
             }
 
@@ -509,8 +544,6 @@ public class MQTTService1 extends Service {
             if (manager != null) {
                 manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
             }
-
-
         }
     }
 

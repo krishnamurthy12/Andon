@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Created by Krishnamurthy T
+  ~ Copyright (c) 2019 .  V V Technologies All rights reserved.
+  ~ Last modified 15/7/19 10:35 AM
+  -->
+
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.vvt.andon">
 
@@ -23,6 +29,7 @@
     <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND"/>
     <uses-permission android:name="android.permission.REQUEST_COMPANION_USE_DATA_IN_BACKGROUND"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
 
     <application
         android:allowBackup="true"

@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 5/7/19 3:24 PM
+ */
+
 package com.vvt.andon.utils;
 
 import android.app.admin.DeviceAdminReceiver;

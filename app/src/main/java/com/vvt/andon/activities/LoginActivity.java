@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 5/7/19 3:25 PM
+ */
+
 package com.vvt.andon.activities;
 
 import android.Manifest;

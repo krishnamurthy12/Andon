@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Created by Krishnamurthy T
+  ~ Copyright (c) 2019 .  V V Technologies All rights reserved.
+  ~ Last modified 12/6/19 1:06 PM
+  -->
+
 <set xmlns:android="http://schemas.android.com/apk/res/android">
 
     <scale

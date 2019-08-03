@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 14/6/19 5:28 PM
+ */
+
 package com.vvt.andon.events;
 
 public class NotificationEvent {

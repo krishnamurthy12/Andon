@@ -8,15 +8,35 @@ android {
         minSdkVersion 21
         targetSdkVersion 26
         versionCode 1
-        versionName "1.6"
+        versionName "1.7"
 
     }
     buildTypes {
         release {
-            minifyEnabled false
+            // Enables code shrinking, obfuscation, and optimization for only
+            // your project's release build type.
+            minifyEnabled true
+
+            // Enables resource shrinking, which is performed by the
+            // Android Gradle plugin.
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+       /* debug{
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }*/
     }
+   /* productFlavors{
+        paid{
+            applicationId = "app id goes here"
+            versionName = "1.0-paid"
+        }
+        free {
+            applicationId = "app id goes here"
+            versionName = "1.0-free"
+        }
+    }*/
 }
 
 repositories {
@@ -40,7 +60,6 @@ dependencies {
 
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.0'
     implementation 'org.eclipse.paho:org.eclipse.paho.android.service:1.1.1'
-
     //event bus
      implementation 'org.greenrobot:eventbus:3.1.1'
 
@@ -48,8 +67,14 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
-    /*implementation files('libs/eventbus-3.1.1.jar')*/
+    //implementation files('libs/eventbus-3.1.1.jar')
 }
+
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 18/7/19 9:39 AM
+ */
 
 //all support libraries with same version and major version has to match compile SDK version.
 //So try to force a specific support library version.

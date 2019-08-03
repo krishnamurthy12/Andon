@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Created by Krishnamurthy T
+  ~ Copyright (c) 2019 .  V V Technologies All rights reserved.
+  ~ Last modified 17/7/19 3:46 PM
+  -->
+
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -192,6 +198,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:gravity="bottom"
+        android:orientation="horizontal"
         android:layout_weight="0.25">
 
         <android.support.design.widget.FloatingActionButton
@@ -205,11 +212,36 @@
             android:scaleType="fitXY"
             />
 
-        <FrameLayout
+
+        <LinearLayout
+
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-            <SlidingDrawer
+            android:layout_gravity="end|bottom"
+            android:gravity="end"
+            android:background="@drawable/coustom"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/vB_ah_logout"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:layout_gravity="end"
+                android:text="LOGOUT"
+                android:textColor="@color/white" />
+            <ImageView
+                android:layout_width="35dp"
+                android:layout_height="22dp"
+                android:tint="@color/white"
+                android:rotation="180"
+                android:layout_marginEnd="16dp"
+                android:layout_marginStart="0dp"
+                android:layout_gravity="center"
+                android:src="@drawable/logout"/>
+
+
+            <!--<SlidingDrawer
                 android:id="@+id/simpleSlidingDrawer"
                 android:layout_width="fill_parent"
                 android:layout_height="30dp"
@@ -228,7 +260,7 @@
                     android:layout_marginEnd="10dp"
                     android:background="@android:drawable/ic_secure"
                     android:text="New Button" />
-                <!-- DEFINE ALL YOUR CONTENT,WIDGETS HERE WHICH YOU WANT TO ADD IN SLIDING DRAWER LAYOUT. -->
+                &lt;!&ndash; DEFINE ALL YOUR CONTENT,WIDGETS HERE WHICH YOU WANT TO ADD IN SLIDING DRAWER LAYOUT. &ndash;&gt;
 
                 <Button
                     android:id="@+id/vB_ah_logout"
@@ -241,7 +273,7 @@
                     android:text="LOGOUT"
                     android:textColor="#FFF" />
 
-            </SlidingDrawer>
+            </SlidingDrawer>-->
 
             <TextView
                 android:id="@+id/vT_ah_employee_name"
@@ -250,6 +282,8 @@
                 android:layout_gravity="center_horizontal"
                 android:gravity="center_horizontal"
                 android:textColor="@color/colorPrimaryDark"
+                android:layout_marginEnd="16dp"
+                android:layout_marginStart="0dp"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
@@ -263,7 +297,7 @@
                  android:text="©2017 powred by V V Technologies"
                  android:textSize="10sp" />-->
 
-        </FrameLayout>
+        </LinearLayout>
 
     </LinearLayout>
 

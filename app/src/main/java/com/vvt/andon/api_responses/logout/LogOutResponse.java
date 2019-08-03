@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 11/9/18 5:33 PM
+ */
+
 package com.vvt.andon.api_responses.logout;
 
 import com.google.gson.annotations.Expose;

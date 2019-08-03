@@ -1,3 +1,9 @@
+/*
+ * Created by Krishnamurthy T
+ * Copyright (c) 2019 .  V V Technologies All rights reserved.
+ * Last modified 24/7/19 2:48 PM
+ */
+
 package com.vvt.andon.activities;
 
 import android.annotation.SuppressLint;
@@ -19,6 +25,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.hardware.camera2.CameraAccessException;
@@ -105,10 +112,11 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
 
     String TAG="HomeActivity";
 
+
     RecyclerView mNotificationsRecyclerView,mUsersRecyclerView;
     SwipeRefreshLayout mSwipeRefreshLayout;
     LinearLayout mAcceptErrorLayout;
-    Button mAccept,mLogOut;
+    Button mAccept;
 
     FloatingActionButton mFlash;
     boolean isFlashEnabled=false;
@@ -127,7 +135,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     List<NotificationList> notificationList;
     List<EmployeeStatusList> employeeStatusList;
 
-    TextView mEmployeeName,mErrorId,mCancel;
+    TextView mEmployeeName,mErrorId,mCancel,mLogOut;
 
     public static Vibrator vibrator;
 
@@ -181,64 +189,20 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     String selectionPosition;
     String actionType="machine";;
 
+    AudioManager manager ;
+
     @Override
     protected void onStart() {
         super.onStart();
        // Log.d("flowcheck","inside onStart()");
         /*To deletes the previous downloaded apk file */
 
-        trimCache(this);
-
+        //trimCache(this);
+/*
         callAllNotificationsAPI();
-        callAllAvailableUsersAPI();
+        callAllAvailableUsersAPI();*/
         //startTimer();
 
-
-        MQTTService1 mqttService1=new MQTTService1();
-        if (!isMyServiceRunning(mqttService1.getClass())) {
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                //  Log.d("versionchecck","Build.VERSION_CODES>=M");
-                Intent serviceIntent = new Intent(this, MQTTService1.class);
-                ContextCompat.startForegroundService(this, serviceIntent );
-            }
-            else {
-                // Log.d("versionchecck","Build.VERSION_CODES<M");
-                startService(new Intent(this,MQTTService1.class));
-
-            }
-            // startService(new Intent(this,MQTTService1.class));
-        }
-
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-       // Log.d("flowcheck","inside onResume()");
-
-        if(alertDialog!=null)
-        {
-            if(alertDialog.isShowing())
-            {
-                alertDialog.dismiss();
-            }
-        }
-
-        if(progressDialog!=null)
-        {
-            if(progressDialog.isShowing())
-            {
-                progressDialog.dismiss();
-            }
-        }
-
-        if (mSwipeRefreshLayout != null) {
-            if (mSwipeRefreshLayout.isRefreshing()) {
-                mSwipeRefreshLayout.setRefreshing(false);
-            }
-
-        }
     }
 
 
@@ -276,9 +240,48 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         initializeViews();
         this.refreshHandler = new Handler(Looper.getMainLooper());
 
+        initiateTasks();
+
        /* registerReceiver(mybroadcast, new IntentFilter(Intent.ACTION_SCREEN_ON));
         registerReceiver(mybroadcast, new IntentFilter(Intent.ACTION_SCREEN_OFF));*/
 
+
+
+    }
+
+    private void initiateTasks() {
+
+        EventBus.getDefault().register(this);
+        manager= (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+
+        try {
+            //  File toDelete = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath(), "ANDON.apk");
+            new DeleteRecursive().execute();
+
+        }catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        MQTTService1 mqttService1=new MQTTService1();
+        if (!isMyServiceRunning(mqttService1.getClass())) {
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                //  Log.d("versionchecck","Build.VERSION_CODES>=M");
+                Intent serviceIntent = new Intent(this, MQTTService1.class);
+                ContextCompat.startForegroundService(this, serviceIntent );
+            }
+            else {
+                // Log.d("versionchecck","Build.VERSION_CODES<M");
+                startService(new Intent(this,MQTTService1.class));
+
+            }
+            // startService(new Intent(this,MQTTService1.class));
+        }
+
+
+        callAllNotificationsAPI();
+        callAllAvailableUsersAPI();
     }
 
 
@@ -287,13 +290,14 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         JobInfo.Builder builder=new JobInfo.Builder(JOB_ID,new ComponentName(this, MyJobService.class));
       /*  //if we want to send data through bundle
        PersistableBundle persistableBundle=new PersistableBundle();
-       persistableBundle.putString("KEY","value");*/
+       persistableBundle.putString("KEY","value");
+      builder.setExtras(persistableBundle);*/
 
        // builder.setPeriodic(15*60 * 1000); /* Repeat job for every 15 minutes*/
         builder.setPeriodic(5*60 * 1000); /* Repeat job for every 5 minutes*/
 
         builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED); // WIFI or ethernet network
-        builder.setPersisted(true);
+        builder.setPersisted(false); //Set whether or not to persist this job across device reboots.
 
         jobInfo=builder.build();
         jobScheduler= (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
@@ -363,7 +367,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
             }
         };
 
-        mTimer1.schedule(mTt1, 1, 1*60*1000); //5 minutes
+        mTimer1.schedule(mTt1, 1, 5*60*1000); //5 minutes
     }
 
     private void stopTimer(){
@@ -394,17 +398,6 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void initializeViews() {
-
-        EventBus.getDefault().register(this);
-
-        try {
-          //  File toDelete = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath(), "ANDON.apk");
-           new DeleteRecursive().execute();
-
-        }catch (Exception e)
-        {
-            e.printStackTrace();
-        }
 
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         notificationList=new ArrayList<>();
@@ -473,10 +466,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         else {
             mAcceptErrorLayout.setVisibility(View.GONE);
         }
-
-
     }
-
 
     @Override
     public void onClick(View v) {
@@ -1404,7 +1394,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         startActivity(launchHomeActivity);*/
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
-        //To remove all the previous notification icons from notification bar
+        //To remove all the previous moe_notification icons from moe_notification bar
         if (notificationManager != null) {
             notificationManager.cancelAll();
         }
@@ -1419,6 +1409,8 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     }
     public void refreshList()
     {
+        trimCache(this);
+
         startActivity(getIntent());
         overridePendingTransition(0, 0);
         finish();
@@ -1428,6 +1420,19 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
     protected void onPause() {
         super.onPause();
         //Log.d("flowcheck","inside onPause()");
+    }
+
+
+    @Override
+    protected void onStop()
+    {
+        super.onStop();
+        //stopTimer();
+        //Log.d("flowcheck","inside onStop()");
+       // EventBus.getDefault().unregister(this);
+
+        hideKeyBoard();
+
         if(alertDialog!=null)
         {
             if(alertDialog.isShowing())
@@ -1450,17 +1455,6 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
             }
 
         }
-    }
-
-
-    @Override
-    protected void onStop()
-    {
-        super.onStop();
-        //stopTimer();
-        //Log.d("flowcheck","inside onStop()");
-       // EventBus.getDefault().unregister(this);
-        hideKeyBoard();
     }
 
     @Override
@@ -1554,8 +1548,8 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
        /* Do something */
        final String message=event.getMessage();
        final String dept=event.getDepartment();
-       final AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
-      // Log.d("receivedevent","received event=>"+message);
+
+       Log.d("receivedevent","received event=>"+message);
         //Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
 
        /* //To bring back to ringing mode
@@ -1570,11 +1564,11 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         if(message.startsWith("Alert from"))
         {
 
-            if (manager != null) {
+           /* if (manager != null) {
                int streamMaxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_RING);
                 //Toast.makeText(this, Integer.toString(streamMaxVolume), Toast.LENGTH_LONG).show(); //I got 7
                 manager.setStreamVolume(AudioManager.STREAM_RING, streamMaxVolume, AudioManager.FLAG_ALLOW_RINGER_MODES|AudioManager.FLAG_PLAY_SOUND);
-            }
+            }*/
 
 
             //To bring back to ringing mode
@@ -1636,7 +1630,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                 manager.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
             }
 
-            NotificationClass.showNotificationToUser(HomeActivity.this);
+
 
             this.refreshHandler.postDelayed(new Runnable() {
                 @Override
@@ -1646,7 +1640,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                     if (manager != null) {
                         manager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
                     }
-
+                    NotificationClass.showNotificationToUser(HomeActivity.this);
                     // refreshContent();
                     if (!IS_USER_INTERACTING) {
                        // refreshContent();
@@ -1655,7 +1649,7 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                 }
-            }, 1000);
+            }, 500);
 
         }
 
@@ -1744,6 +1738,8 @@ public class HomeActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+
+    // To delete the downloaded APK file
     public class DeleteRecursive extends AsyncTask<Void,Void,Void>
     {
 
